@@ -1,0 +1,20 @@
+#!/bin/csh
+
+@ i = 1
+@ sumUndo = 0
+@ sumSoftWrap = 0
+
+while ($i <= 20)
+	set a1=`~/pin/pin -t ./wraptrace3.so  -- $1 $2 $3 $4 4 $5 | grep WRAPSTATS | awk '{print $56}'`
+	set a2=`~/pin/pin -t ./wraptrace3.so  -- $1 $2 $3 $4 6 | grep WRAPSTATS | awk '{print $56}' `
+
+	echo "UndoLog \t$a1 \tSoftWrap \t$a2 "
+
+	@ sumUndo += $a1
+	@ sumSoftWrap += $a2
+	@ i += 1
+end
+
+set a3=`echo "scale=4;$sumUndo/$sumSoftWrap" | bc`
+
+echo "SPEEDUP \t$sumUndo \t$sumSoftWrap \t$a3"

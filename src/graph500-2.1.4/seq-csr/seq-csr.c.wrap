@@ -1,0 +1,245 @@
+/* -*- mode: C; mode: folding; fill-column: 70; -*- */
+/* Copyright 2010,  Georgia Institute of Technology, USA. */
+/* See COPYING for license. */
+#define _FILE_OFFSET_BITS 64
+#define _THREAD_SAFE
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+
+#include <assert.h>
+
+#include "../compat.h"
+#include "../graph500.h"
+#include "../xalloc.h"
+#include "../generator/graph_generator.h"
+#include "wrap.h"
+
+#define MINVECT_SIZE 2
+
+static int64_t maxvtx, nv, sz;
+static int64_t * restrict xoff; /* Length 2*nv+2 */
+static int64_t * restrict xadjstore; /* Length MINVECT_SIZE + (xoff[nv] == nedge) */
+static int64_t * restrict xadj;
+
+static void
+find_nv (const struct packed_edge * restrict IJ, const int64_t nedge)
+{
+	WRAPOPEN;
+  int64_t k;
+
+  maxvtx = -1;
+  for (k = 0; k < nedge; ++k) {
+    if (get_v0_from_edge(&IJ[k]) > maxvtx)
+      maxvtx = get_v0_from_edge(&IJ[k]);
+    if (get_v1_from_edge(&IJ[k]) > maxvtx)
+      maxvtx = get_v1_from_edge(&IJ[k]);
+  }
+  nv = 1+maxvtx;
+  WRAPCLOSE;
+}
+
+static int
+alloc_graph (int64_t nedge)
+{
+  sz = (2*nv+2) * sizeof (*xoff);
+  printf("sz=%d\n", sz);
+  xoff = xmalloc_large_ext (16*sz);
+  if (!xoff) return -1;
+  return 0;
+}
+
+static void
+free_graph (void)
+{
+  xfree_large (xadjstore);
+  xfree_large (xoff);
+}
+
+#define XOFF(k) (xoff[2*(k)])
+#define XOFFR(k) WRAPREAD64(XOFF(k))
+#define XOFFW(k, v) WRAPWRITE(XOFF(k), v)
+
+#define XENDOFF(k) (xoff[1+2*(k)])
+#define XENDOFFR(k) WRAPREAD64(XENDOFF(k))
+#define XENDOFFW(k, v) WRAPWRITE(XENDOFF(k), v)
+
+
+static int
+setup_deg_off (const struct packed_edge * restrict IJ, int64_t nedge)
+{
+  int64_t k, accum;
+  int64_t zero = 0;
+  int64_t negone = -1;
+  WRAPOPEN;
+  for (k = 0; k < 2*nv+2; ++k)
+    WRAPWRITE(xoff[k], zero);
+  printf("nv=%d nedge=%d\n", nv, nedge);
+  for (k = 0; k < nedge; ++k) {
+    int64_t i = get_v0_from_edge(&IJ[k]);
+    int64_t j = get_v1_from_edge(&IJ[k]);
+    if (i != j) { /* Skip self-edges. */
+    	printf("i=%d j=%d k=%d\n", i, j, k);
+      if (i >= 0) WRAP_PP(int64_t, XOFF(i));
+      if (j >= 0) WRAP_PP(int64_t, XOFF(j));
+    }
+  }
+
+  accum = 0;
+  for (k = 0; k < nv; ++k) {
+    int64_t tmp = XOFFR(k);
+    if (tmp < MINVECT_SIZE) tmp = MINVECT_SIZE;
+    WRAPWRITE(XOFF(k), accum);
+    accum += tmp;
+  }
+  WRAPWRITE(XOFF(nv), accum);
+  for (k = 0; k < nv; ++k)
+  {
+    //XENDOFF(k) = XOFF(k);
+	  WRAPWRITE(XENDOFF(k), XOFFR(k));
+  }
+  if (!(xadjstore = xmalloc_large_ext ((accum + MINVECT_SIZE) * sizeof (*xadjstore))))
+  {
+	  WRAPCLOSE;
+      return -1;
+  }
+  xadj = &xadjstore[MINVECT_SIZE]; /* Cheat and permit xadj[-1] to work. */
+  for (k = 0; k < accum + MINVECT_SIZE; ++k)
+    WRAPWRITE(xadjstore[k], negone);
+  WRAPCLOSE;
+  return 0;
+}
+
+static void
+scatter_edge (const int64_t i, int64_t j, WRAPTOKEN tempToken)
+{
+  int64_t where;
+  where = WRAPREAD64(XENDOFF(i)) + 1;
+  WRAPWRITE(xadj[where], j);
+}
+
+static int
+i64cmp (const void *a, const void *b)
+{
+  const int64_t ia = *(const int64_t*)a;
+  const int64_t ib = *(const int64_t*)b;
+  if (ia < ib) return -1;
+  if (ia > ib) return 1;
+  return 0;
+}
+
+static void
+pack_vtx_edges (const int64_t i, WRAPTOKEN tempToken)
+{
+  int64_t kcur, k;
+  if (XOFFR(i)+1 >= XENDOFFR(i)) return;
+  qsort (&xadj[XOFF(i)], XENDOFFR(i)-XOFFR(i), sizeof(*xadj), i64cmp);
+  kcur = XOFFR(i);
+  for (k = XOFFR(i)+1; k < XENDOFFR(i); ++k)
+    if (xadj[k] != xadj[kcur])
+      xadj[++kcur] = xadj[k];
+  ++kcur;
+  for (k = kcur; k < XENDOFFR(i); ++k)
+    xadj[k] = -1;
+  WRAPWRITE(XENDOFF(i), kcur);
+}
+
+static void
+pack_edges (WRAPTOKEN w)
+{
+  int64_t v;
+
+  for (v = 0; v < nv; ++v)
+    pack_vtx_edges (v, w);
+}
+
+static void
+gather_edges (const struct packed_edge * restrict IJ, int64_t nedge)
+{
+  int64_t k;
+
+  WRAPOPEN;
+  for (k = 0; k < nedge; ++k) {
+    int64_t i = get_v0_from_edge(&IJ[k]);
+    int64_t j = get_v1_from_edge(&IJ[k]);
+    if (i >= 0 && j >= 0 && i != j) {
+      scatter_edge (i, j, tempToken);
+      scatter_edge (j, i, tempToken);
+    }
+  }
+
+  pack_edges (tempToken);
+  WRAPCLOSE;
+}
+
+int 
+create_graph_from_edgelist (struct packed_edge *IJ, int64_t nedge)
+{
+  find_nv (IJ, nedge);
+  if (alloc_graph (nedge)) return -1;
+  if (setup_deg_off (IJ, nedge)) {
+    xfree_large (xoff);
+    return -1;
+  }
+  gather_edges (IJ, nedge);
+  return 0;
+}
+
+int
+make_bfs_tree (int64_t *bfs_tree_out, int64_t *max_vtx_out,
+	       int64_t srcvtx)
+{
+  int64_t * restrict bfs_tree = bfs_tree_out;
+  int err = 0;
+
+  int64_t * restrict vlist = NULL;
+  int64_t k1, k2;
+ // int64_t negone = -1;
+
+  *max_vtx_out = maxvtx;
+
+  WRAPOPEN;
+
+  vlist = xmalloc_large (nv * sizeof (*vlist));
+  if (!vlist)
+  {
+	  WRAPCLOSE;
+	  return -1;
+  }
+
+  for (k1 = 0; k1 < nv; ++k1)
+    WRAPASSIGN(bfs_tree[k1], -1);
+
+  WRAPWRITE(vlist[0], srcvtx);
+  WRAPWRITE(bfs_tree[srcvtx], srcvtx);
+  k1 = 0; k2 = 1;
+  while (k1 != k2) {
+    const int64_t oldk2 = k2;
+    int64_t k;
+    for (k = k1; k < oldk2; ++k) {
+      int64_t v = WRAPREAD64(vlist[k]);
+      const int64_t veo = XENDOFFR(v);
+      int64_t vo;
+      for (vo = XOFFR(v); vo < veo; ++vo) {
+	int64_t j = WRAPREAD64(xadj[vo]);
+	if (WRAPREAD64(bfs_tree[j]) == -1) {
+	  WRAPWRITE(bfs_tree[j], v);
+	  WRAPWRITE(vlist[k2++], j);
+	}
+      }
+    }
+    k1 = oldk2;
+  }
+
+  xfree_large (vlist);
+  WRAPCLOSE;
+
+  return err;
+}
+
+void
+destroy_graph (void)
+{
+  free_graph ();
+}

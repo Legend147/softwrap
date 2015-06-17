@@ -1,0 +1,3 @@
+#!/bin/csh
+
+perf stat -e cycles -e instructions -e cache-misses -e cache-references -e cpu-clock -e faults -e LLC-loads -e LLC-stores -e LLC-load-misses -e LLC-store-misses $*

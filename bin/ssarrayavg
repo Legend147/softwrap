@@ -1,0 +1,12 @@
+#!/bin/tcsh
+
+rm -f tmpavg
+set n=1
+foreach i (`seq 1 1 $n`)
+	./ssarray $* >> tmpavg
+end
+
+grep txps      tmpavg | awk '{sum+=$1} END {print sum/NR " txps"}'
+grep avgtxtime tmpavg | awk '{sum+=$1} END {print sum/NR " avgtxtime"}'
+grep mintxtime tmpavg | awk '{sum+=$1} END {print sum/NR " mintxtime"}'
+rm tmpavg

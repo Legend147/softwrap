@@ -1,0 +1,18 @@
+#!/bin/bash
+
+sumA=0
+echo "Run	Num"
+for i in `seq 1 $1`
+do
+	#echo `$2 $3 $4 $5 $6 $7 $8 $9 2>/dev/null | grep totalWrapTime | awk '{print $2}'`
+	a1=`$2 $3 $4 $5 $6 $7 $8 $9 ${10} ${11} ${12} ${13} ${14} ${15} ${16} ${17} ${18}  2>/dev/null | grep totalWrapTime | awk '{print $2}'`
+
+#echo "$a1"
+	let "sumA+=$a1"
+
+	SA=`echo "scale=4;$sumA/$i" | bc`
+
+	echo "$i 	$a1 	$sumA 	$SA"
+done
+
+echo "AVGTIME 	$SA"

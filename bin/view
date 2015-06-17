@@ -1,0 +1,4 @@
+#!/bin/csh
+
+~/pin/pin -t ./wraptrace3.so -nvmain $7 -- $1 $2 $3 $4 $5 $6 | grep WRAPSTATS | 	awk '{print "WRAPSTATS \t" $3 " \t" $5 " \t" $13 " \t" $15 " \t" $17 " \t" $30 " \t" $38 " \t" $40 " \t" $42 " \t" $44 " \t" $46 " \t" $48 " \t" $50 " \t" $52 " \t" $54 " \t" $56 '}
+echo "WRAPHEADER 	Type	Options	nWraps	WrapReads	WrapWrites	L1E	L3E	DRR 	DRW 	PCMR 	PCMW 	WTS 	NTS 	PMSync 	Inst 	Cycles"

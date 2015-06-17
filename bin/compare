@@ -1,0 +1,4 @@
+#!/bin/csh
+
+~/pin/pin -t ./wraptrace3.so  -- $1 $2 $3 $4 4 | grep WRAPSTATS
+~/pin/pin -t ./wraptrace3.so  -- $1 $2 $3 $4 6 | grep WRAPSTATS

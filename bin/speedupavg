@@ -1,0 +1,25 @@
+#!/bin/bash
+
+sumUndo=0
+sumSoftWrap=0
+
+echo "Run	UndoLog 	SoftWrap 	Speedup"
+
+for i in `seq 1 $1`
+do
+
+	a1=`~/pin/pin -t ./wraptrace3.so  -- $2 $3 $4 $5 4 $6 2>/dev/null | grep WRAPSTATS | awk '{print $56}'`
+	a2=`~/pin/pin -t ./wraptrace3.so  -- $2 $3 $4 $5 6 $7 2>/dev/null | grep WRAPSTATS | awk '{print $56}' `
+
+	let "sumUndo+=$a1"
+	let "sumSoftWrap+=$a2"
+
+	SU=`echo "scale=4;$a1/$a2" | bc`
+	a3=`echo "scale=4;$sumUndo/$sumSoftWrap" | bc`
+
+	echo "$i 	$a1 	$a2 	$SU 	$a3"
+done
+
+a3=`echo "scale=4;$sumUndo/$sumSoftWrap" | bc`
+
+echo "SPEEDUP 	$sumUndo 	$sumSoftWrap 	$a3"
