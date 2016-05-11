@@ -15,7 +15,7 @@ PIN_L_OPTIONS = -Wl,-rpath=$(PIN_PATH)/intel64/runtime/cpplibs -Wl,--hash-style=
 		-L$(PIN_PATH)/extras/xed2-intel64/lib -L$(PIN_PATH)/intel64/lib -L$(PIN_PATH)/intel64/lib-ext  \
 		-L$(PIN_PATH)/intel64/runtime/cpplibs -L$(PIN_PATH)/extras/xed2-intel64/lib \
 		-L$(PIN_PATH)/intel64/lib -L$(PIN_PATH)/intel64/lib-ext $(PIN_DEBUG)
-
+BINS = wraptrace.so
 
 wraptrace.so: wraptrace.cpp debug.h simcache.h pin_cache_wrap.H simnvm.h nvmain.a simdram.h dramsim.a
 	g++ $(PIN_C_OPTIONS) -o wraptrace.o -I../nvmain -I../../include -I../dramsim2 wraptrace.cpp
@@ -37,3 +37,5 @@ dramsimpin.so: dramsimpin.cpp dramsim.a simdram.h debug.h memtool.o
 	g++ $(PIN_C_OPTIONS) -o dramsimpin.o -I../dramsim2 dramsimpin.cpp
 	g++ $(PIN_L_OPTIONS) -o dramsimpin.so dramsimpin.o memtool.o dramsim.a -lpin -lxed -ldwarf -lelf -ldl
 	
+clean:
+	rm -f $(BINS)

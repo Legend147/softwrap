@@ -3,14 +3,14 @@ VPATH = ../../include
 OBJS = wrap.o memtool.o WrapImpl.o WrapImplUndoLog.o WrapImplSoftware.o avl.o pmem.o tracer.o virt2phys.o \
 	WrapLogger.o WrapLogManager.o WrapLogManagerBlock.o AliasTable.o AliasTableHash.o AT2.o LFHT.o AT3.o ATL.o
 
-LIBS = ../../libs/libwrap.so ../../libs/libwrap.a
+LIBS = ../../lib/libwrap.so ../../lib/libwrap.a
 
 all: $(LIBS)
 
-../../libs/libwrap.so: $(OBJS)
+../../lib/libwrap.so: $(OBJS)
 	g++ -o $@ -g -shared -fPIC $^ -lpthread -lrt 
 
-../../libs/libwrap.a: $(OBJS)
+../../lib/libwrap.a: $(OBJS)
 	ar -rv $@ $^
 
 clean:

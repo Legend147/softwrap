@@ -1,7 +1,7 @@
-VPATH = ../../include ../../bin ../../libs
+VPATH = ../../include ../../bin ../../lib
 
 BIN = ../../bin
-LIB = ../../libs
+LIB = ../../lib
 
 BINS = $(BIN)/testsimple $(BIN)/testarray $(BIN)/testmap $(BIN)/testwrapbtree $(BIN)/bencharray \
 	$(BIN)/benchmap $(BIN)/arraytrace $(BIN)/arrayobject $(BIN)/arrayvalidate \
