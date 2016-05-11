@@ -25,6 +25,7 @@ export CFLAGS += -DTRACER -DNDEBUG
 endif
 
 all:
+	mkdir -p ../lib
 	$(MAKE) -C main
 	$(MAKE) -C tests
 	$(MAKE) -C tracer
