@@ -607,7 +607,9 @@ void *mallocAligned(size_t size)
 	//	Debug("%d\n", (int)size);
 	//void *v = malloc(size);
 	void *v;
-	posix_memalign(&v, CACHELINESIZE, size);
+	int err = posix_memalign(&v, CACHELINESIZE, size);
+	if (err)
+		fprintf(stderr, "mallocAligned error %d\n", err);
 	return v;
 }
 
@@ -704,7 +706,8 @@ size_t cache_line_size() {
 	p = fopen("/sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size", "r");
 	unsigned int i = 0;
 	if (p) {
-		fscanf(p, "%d", &i);
+		if (fscanf(p, "%d", &i) < 0)
+			i = 0;
 		fclose(p);
 	}
 	return i;
