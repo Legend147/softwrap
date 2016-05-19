@@ -15,11 +15,17 @@ PIN_L_OPTIONS = -Wl,-rpath=$(PIN_PATH)/intel64/runtime/cpplibs -Wl,--hash-style=
 		-L$(PIN_PATH)/extras/xed2-intel64/lib -L$(PIN_PATH)/intel64/lib -L$(PIN_PATH)/intel64/lib-ext  \
 		-L$(PIN_PATH)/intel64/runtime/cpplibs -L$(PIN_PATH)/extras/xed2-intel64/lib \
 		-L$(PIN_PATH)/intel64/lib -L$(PIN_PATH)/intel64/lib-ext $(PIN_DEBUG)
-BINS = wraptool.so
 
-wraptool.so: wraptool.cpp debug.h 
-	g++ $(PIN_C_OPTIONS) -o wraptool.o -I../../include wraptool.cpp
-	g++ $(PIN_L_OPTIONS) -o wraptool.so wraptool.o -lpin -lxed -ldwarf -lelf -ldl -lrt
+BINS = wraptool.so tooltest
+
+all: $(BINS)
+
+wraptool.so: wraptool.cpp debug.h memtool.h ../main/pmem.h ../../lib/libwrap.a
+	g++ $(PIN_C_OPTIONS) -o wraptool.o -I../main -I../../include wraptool.cpp
+	g++ $(PIN_L_OPTIONS) -o wraptool.so wraptool.o ../../lib/libwrap.a -lpin -lxed -ldwarf -lelf -ldl -lrt
+	
+tooltest: tooltest.cpp wraptool.so debug.h wrap.h ../../lib/libwrap.a
+	g++ -ggdb -o tooltest tooltest.cpp -I../../include ../../lib/libwrap.a -lpthread
 
 clean:
 	rm -f $(BINS)
