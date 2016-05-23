@@ -191,6 +191,8 @@ VOID markWrapClose(int wrapToken, int threadID)
 
 void *PMalloc(size_t size)
 {
+	printf("in pin pmalloc!\n");
+
 	inWrapFlags[PIN_ThreadId()] |= IN_PMALLOC_FLAG;
 	void *v = pmalloc(size);
 	inWrapFlags[PIN_ThreadId()] ^= IN_PMALLOC_FLAG;
