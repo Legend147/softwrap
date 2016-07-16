@@ -236,7 +236,7 @@ WrapLogManager *WrapImpl::getWrapLogManager()
 }
  */
 
-long _startTime = 0;
+//long _startTime = 0;
 long getTime()
 {
 	struct timeval t;
@@ -248,15 +248,17 @@ long getTime()
 	}
 	return (t.tv_sec * 1000000) + t.tv_usec;
 }
+/*
 void tic()
 {
 	_startTime = getTime();
 }
 double toc()
 {
-	/*  Calculate the latency in us.  */
+	//  Calculate the latency in us.
 	return getTime() - _startTime;
 }
+*/
 
 WrapImpl::WrapImpl()
 {

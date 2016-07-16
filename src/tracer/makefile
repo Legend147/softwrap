@@ -1,7 +1,7 @@
-VPATH = ../../include ../../bin ../../libs
+VPATH = ../../include ../../bin ../../lib
 
 BIN = ../../bin
-LIB = ../../libs
+LIB = ../../lib
 
 BINS = $(BIN)/virtualtest $(BIN)/virt2phystest $(BIN)/virt2actual $(BIN)/phys2actual $(BIN)/physicaltracer
 

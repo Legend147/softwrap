@@ -58,6 +58,7 @@ const char *getAliasDetails();
 
 //  Persistent malloc.
 void *pmalloc(size_t size);
+void *pmallocLog(size_t size);
 //  Persistent free.
 //void pfree(void *p);
 void pfree(void *ptr);

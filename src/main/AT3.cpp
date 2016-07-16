@@ -337,7 +337,7 @@ void AT3::write(void *ptr, void *src, int size)
 	atprintf("copied\n");
 };
 
-uint64_t AT3::load(void *ptr)
+void *AT3::load(void *ptr)
 {
 	//  Thread's copy / WrAP's copy of Alias Table.
 	void *v = m_aliasTableHash->GetItemAddress((uint64_t)ptr);
@@ -346,8 +346,8 @@ uint64_t AT3::load(void *ptr)
 		v = otherTable->GetItemAddress((uint64_t)ptr);
 	}
 	if (v == NULL)
-		return *(uint64_t*)ptr;
-	return *(uint64_t*)v;
+		v = ptr;
+	return v;
 }
 
 void AT3::store(void *ptr, uint64_t value, int size)

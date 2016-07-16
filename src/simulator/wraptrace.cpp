@@ -156,12 +156,12 @@ VOID markWrapClose(int wrapToken, int threadID)
 	numWrapsOpen[threadID]--;
 }
 
-void doPersistentNotifyPin(void *v, size_t size)
+void doPersistentNotifyPin(void *v, size_t size, bool isLogArea)
 {
 	if (KnobTraceWrap.Value())
 	{
 		char buf[128];
-		sprintf(buf, "doPersistentNotifyPin(%p, %ld)\n", v, size);
+		sprintf(buf, "doPersistentNotifyPin(%p, %ld %d)\n", v, size, isLogArea);
 		LOG(buf);
 	}
 	GetLock(&pmemlock, PIN_ThreadId());
@@ -290,7 +290,7 @@ void doGetPinStatistics(char *c)
 			//nWtstores,
 			nNtstores, nSyncs, nInstructions, currentCycle);
 }
-void doStartStatistics()
+void doStartPinStatistics()
 {
 	started = true;
 }
@@ -304,7 +304,7 @@ void cycle(int c)
 
 		if (NVMSlowdownFactor > 1)
 		{
-			if ((currentCycle / NVMSlowdownFactor) * NVMSlowdownFactor == currentCycle)
+			if (currentCycle % NVMSlowdownFactor == 0)
 				nvmsim->update();
 			else
 			{
@@ -764,10 +764,10 @@ VOID Routine(RTN rtn, VOID *v)
 		RTN_Replace(rtn, (AFUNPTR)doGetPinStatistics);
 	}
 	//  Start collecting statistics.
-	if (checkSymbolName(rtn, "startStatistics"))
+	if (checkSymbolName(rtn, "startPinStatistics"))
 	{
 		RTN_Open(rtn);
-		RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)doStartStatistics, IARG_END);
+		RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)doStartPinStatistics, IARG_END);
 		RTN_Close(rtn);
 	}
 

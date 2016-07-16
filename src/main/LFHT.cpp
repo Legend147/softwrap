@@ -190,9 +190,12 @@ void LFHT::SetItem(uint64_t key, uint64_t value, int size)
 	sets = sets+1;
 	 */
 	setBloom(key);
+	int l = 0;
 	for (uint64_t idx = integerHash(key);; idx++)
 	{
 		idx &= (m_arraySize - 1);
+		l++;
+		assert(l < m_arraySize);
 
 		// Load the key that was there.
 		uint64_t probedKey = load_64_relaxed(&m_entries[idx].key);

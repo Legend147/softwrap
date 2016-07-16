@@ -61,7 +61,7 @@ get_options (int argc, char **argv) {
 	      "  v   : version\n"
 	      "  h|? : this message\n"
 	      "  R   : use R-MAT from SSCA2 (default: use Kronecker generator)\n"
-	      "  s   : R-MAT scale (default %" PRId64 ")\n"
+	      "  s   : R-MAT scale (default %" PRId64 ") if 0 read env var $A1\n"
 	      "  e   : R-MAT edge factor (default %" PRId64 ")\n"
 	      "  A|a : R-MAT A (default %lg) >= 0\n"
 	      "  B|b : R-MAT B (default %lg) >= 0\n"
@@ -154,12 +154,20 @@ get_options (int argc, char **argv) {
       errno = 0;
       SCALE = strtol (optarg, NULL, 10);
       if (errno) {
-	fprintf (stderr, "Error parsing scale %s\n", optarg);
-	err = -1;
+    	  fprintf (stderr, "Error parsing scale %s\n", optarg);
+    	  err = -1;
       }
       if (SCALE <= 0) {
-	fprintf (stderr, "Scale must be non-negative.\n");
-	err = -1;
+
+    	  errno = 0;
+    	  if (getenv("A1") != NULL)
+    		  SCALE = strtol(getenv("A1"), NULL, 10);
+    	  if (errno || (SCALE <= 0))
+    	  {
+
+    		  fprintf (stderr, "Scale must be non-negative.\n");
+    		  err = -1;
+    	  }
       }
       break;
     case 'e':

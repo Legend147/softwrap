@@ -34,118 +34,124 @@
 #include "wrap.h"
 #include "memtool.h"
 #include "tracer.h"
+#include "WrapBTree.h"
 
-void trace(int *data, int arraySize, int wrapSize, int nSeconds, long rate, int reuse)
+
+const int randseed = 34234235;
+typedef stx::btree<int, int> bt;
+bt *m_t;
+#define LEN	10
+
+void trace(int wrapSize, int nSeconds, long rate)
 {
-	int j,index;
 	long count = 0;
-	long elapsed = 0;
+	long oneNs = 1000000000;
 	long ns = nSeconds;
-	ns *= 1000000000;
+	ns *= oneNs;
+
 	long txStartTime, txEndTime, txElapsed;
 	long txTotalTime = 0;
 	long mintxtime = 1<<30;
 	long maxtxtime = 0;
 
-	threadToCore(11);
-
-	double d = 0.0;
 	assert(nSeconds >= 3);
-	long start, recordStart;
-	start = getNsTime();
-	long IgnoreFirst = 0;
-	recordStart = 0;
+
+	long txEntryTimes[LEN];
+
+	AttachPrimaryCore;
+	long start = getNsTime();
+	int current;
+	for (int current = 0; current < LEN; current++)
+		txEntryTimes[current] = start + (oneNs/rate) * current;
+	current = 0;
 	printf("start\n");
+	//  Start recording at start + ns/3
+	long startRec = start + ns/3;
 	do
 	{
-		d = (count-IgnoreFirst) * (1000000000.0 / rate) + recordStart;
-		long t1 = getNsTime();
-		if (d > t1)
-			d = t1;
-		//printf("%f %ld, count=%ld ignore=%ld\n", d, recordStart, count, IgnoreFirst);
-		txStartTime = d;
-
-
-		WRAPTOKEN w = wrapOpen();
-
-		TODO!
-
-		wrapClose(w);
-
-
-		txEndTime = getNsTime();
-		txElapsed = txEndTime - txStartTime;
-		count++;
 		do
 		{
-			elapsed = getNsTime() - start;
+			txStartTime = getNsTime();
 		}
-		while (count > ((double)rate * (double)elapsed) / 1000000000.0);
+		//  Wait until transaction arrives.
+		while (txStartTime < txEntryTimes[current]);
+
+		WRAPTOKEN w = wrapOpen();
+		for (int j = 0; j < wrapSize; j++)
+		{
+			//printf("%d\n", j);
+			m_t->insert(rand());
+		}
+		wrapClose(w);
+
+		txEndTime = getNsTime();
+		txElapsed = txEndTime - txEntryTimes[current];  // Response time.
+		//  txService = txEndTime - txStartTime;
 
 		//  Ignore first values.
-		if (elapsed > ns/3)
+		if (txStartTime > startRec)
 		{
-			if (recordStart == 0)
-			{
-				recordStart = getNsTime();
-				IgnoreFirst++;
-			}
-			else
-			{
-				txTotalTime += txElapsed;
-				if (txElapsed < mintxtime)
-					mintxtime = txElapsed;
-				if (txElapsed > maxtxtime)
-					maxtxtime = txElapsed;
-			}
+			txTotalTime += txElapsed;
+			if (txElapsed < mintxtime)
+				mintxtime = txElapsed;
+			if (txElapsed > maxtxtime)
+				maxtxtime = txElapsed;
+			count++;
 		}
-		else
-		{
-			IgnoreFirst++;
-		}
+		//  Calculate the next expected entry of a request.
+		long t = txEntryTimes[(current+LEN-1)%LEN] + (oneNs/rate);
+		if (t < getNsTime())
+			t = getNsTime();
+		txEntryTimes[current] = t;
+		current = (current+1)%LEN;
 	}
-	while (elapsed < ns);
-	printf("txEndTime - now=%ld\n", getNsTime()-txEndTime);
+	while (txEndTime < (start + ns));
 
-	double txps = count - IgnoreFirst;
-		txps *= 1000000000;
-		wrapFlush();
-		txps /= (getNsTime() - recordStart);
-
-
+	double txps = count;
+	txps *= 1000000000;
+	wrapFlush();
+	txps /= (getNsTime() - startRec);
 
 	double avgtime = txTotalTime;
-	avgtime /= (count - IgnoreFirst);
+	avgtime /= count;
 
 	printf("\n%f txps\n", txps);
 	printf("%f avgtxtime\n", avgtime);
 	printf("%ld mintxtime\n", mintxtime);
 	printf("%ld maxtxtime\n", maxtxtime);
-	d = totalWrapOpen;
-	d /= (count - IgnoreFirst);
-	printf("%f avgservice\n", txE d / (count-IgnoreFirst));
+	//d = totalWrapOpen;
+	//d /= (count - IgnoreFirst);
+	//printf("%f avgservice\n", txE d / (count-IgnoreFirst));
 }
 
-void maxtrace(int *data, int arraySize, int wrapSize, int reuse)
+void maxtrace(int wrapSize)
 {
-	int j, index;
+	//int j, index;
 	long start = 0;
 
 
 	printf("start\n");
-	threadToCore(11);
+	AttachPrimaryCore;
 
-	for (int i=0; i < 1000000; i++)
+	int total = 10000 / wrapSize;
+	int ignor = 2500 / wrapSize;
+
+	for (int i=0; i < total; i++)
 	{
-		if (i == 250000)
+		if (i == ignor)
 			start = getNsTime();
 		WRAPTOKEN w = wrapOpen();
 
+		for (int j = 0; j < wrapSize; j++)
+		{
+			//printf("%d\n", j);
+			m_t->insert(rand());
+		}
 
 		wrapClose(w);
 	}
-
-	double txps = 749999;
+	printf("Done\n");
+	double txps = (total - ignor);
 	txps *= 1000000000;
 	wrapFlush();
 	txps /= (getNsTime() - start);
@@ -158,8 +164,8 @@ void usage(char *c)
 {
 	fprintf(stderr, "Usage: %s wrapSize nSeconds rate initSize [wrapType [options]]\n", c);
 	fprintf(stderr, "\tRun an insert into a btree of wrapSize access in each wrap for at least nSeconds.\n" \
-					"\tThe rate is the arrival rate of transactions per second.\n" \
-					"\tIf rate is zero, then transactions are added continuously.\n");
+			"\tThe rate is the arrival rate of transactions per second.\n" \
+			"\tIf rate is zero, then transactions are added continuously.\n");
 	fprintf(stderr, "\tWhere wrapType is one of:\n");
 	printWrapImplTypes(stderr);
 	fprintf(stderr, "\tFor type %d the options are:\n", getWrapImplType());
@@ -221,15 +227,27 @@ int main(int argc, char *argv[])
 	//  Display memory attributes.
 	printMemoryAttributes();
 
+	//  Initialization
+	srand(randseed);
+	m_t = new bt();
+	for (int i = 0; i < initSize; i++)
+	{
+		//if (doRandom)
+		m_t->insert(rand());
+		//else
+		//m_t->insert(i);
+	}
+	// Can be slightly smaller if random elements were duplicated.
+	printf("initial size=%u\n", (unsigned int)m_t->size());
+	fflush(stdout);
+
 	StartPhysicalTracer();
 	startStatistics();
 
-	//  init here
-
 	if (rate == 0)
-		maxtrace(data, arraySize, wrapSize);
+		maxtrace(wrapSize);
 	else
-		trace(data, arraySize, wrapSize, nSeconds, rate);
+		trace(wrapSize, nSeconds, rate);
 
 	EndPhysicalTracer();
 

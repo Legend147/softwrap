@@ -47,7 +47,7 @@ public:
 	void *read(void *ptr, int size);
 	void write(void *ptr, void *src, int size);
 
-	uint64_t load(void *ptr);
+	void *load(void *ptr);
 	void store(void *ptr, uint64_t value, int size);
 
 	const char *getDetails();

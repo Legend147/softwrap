@@ -153,11 +153,13 @@ void WrapImplSoftware::wrapImplStore32(void *ptr, uint32_t value, WRAPTOKEN w)
 
 uint64_t WrapImplSoftware::wrapImplLoad64(void *ptr, WRAPTOKEN w)
 {
-	return _table->load(ptr);
+	uint64_t *t = (uint64_t *)_table->load(ptr);
+	return *t;
 }
 uint32_t WrapImplSoftware::wrapImplLoad32(void *ptr, WRAPTOKEN w)
 {
-	return _table->load(ptr);
+	uint32_t *t = (uint32_t *)_table->load(ptr);
+	return *t;
 }
 
 WrapImplSoftware::WrapImplSoftware()

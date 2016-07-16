@@ -53,7 +53,7 @@ WrapLogManagerBlock::WrapLogManagerBlock()
 		m_activeThreads = 0;
 		m_maxLogs = LOGS_PER_THREAD * MAX_THREADS;
 		m_totalSize = m_logSize*m_maxLogs;
-		m_logArea = (char*)pmalloc(m_totalSize);
+		m_logArea = (char*)pmallocLog(m_totalSize);
 		m_completed = 0;
 		m_logs = (WrapLogger **)malloc(m_maxLogs * sizeof(WrapLogger*));
 		for (int i = 0; i < m_maxLogs; i++)

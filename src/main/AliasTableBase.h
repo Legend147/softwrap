@@ -44,7 +44,7 @@ public:
 	virtual void *read(void *ptr, int size) = 0;
 	virtual void write(void *ptr, void *src, int size) = 0;
 
-	virtual uint64_t load(void *ptr) = 0;
+	virtual void *load(void *ptr) = 0;
 	virtual void store(void *ptr, uint64_t value, int size) = 0;
 
 	//  Restore all elements.
