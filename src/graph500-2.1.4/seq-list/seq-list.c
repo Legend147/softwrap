@@ -96,7 +96,7 @@ make_bfs_tree (int64_t *bfs_tree_out, int64_t *max_vtx_out,
   const int64_t nv = maxvtx+1;
 
   int64_t k, k1, k2, newk2;
-  int64_t * restrict vlist;
+  //int64_t * restrict vlist;
 
   *max_vtx_out = maxvtx;
 
@@ -104,7 +104,10 @@ make_bfs_tree (int64_t *bfs_tree_out, int64_t *max_vtx_out,
   WRAPSTORE64(bfs_tree[srcvtx], srcvtx);
   newk2 = 1;
 
-  vlist = malloc (nv * sizeof (*vlist));
+
+ // vlist = malloc (nv * sizeof (*vlist));
+  int64_t vlist[1<<10];
+
   if (!vlist) return -1;
   //bfs_tree[srcvtx] = srcvtx;
   WRAPSTORE64(bfs_tree[srcvtx], srcvtx);
@@ -146,7 +149,7 @@ make_bfs_tree (int64_t *bfs_tree_out, int64_t *max_vtx_out,
 		  k2 = newk2;
 	  }
   }
-  free (vlist);
+  //free (vlist);
 
   WRAPCLOSE;
 

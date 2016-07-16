@@ -128,16 +128,27 @@ void printWrapImplTypes(FILE *stream)
 }
 
 
+void startPinStatistics()
+{
+
+}
+
 void startStatistics()
 {
 	getWrapImpl()->startStatistics();
+	startPinStatistics();
 }
 
 void getPinStatistics(char *c)
 {
-	sprintf(c, "ntstore= %d \tp_msync= %d \twritecomb= %d \t" \
-			"Pin not running or overloading the getPinStatistics function.",
-			getNumNtStores(), getNumPMSyncs(), getNumWriteComb());
+	sprintf(c, "Pin not running or overloading the getPinStatistics function.");
+}
+void getStatistics(char *c)
+{
+	char tc[1024];
+	getPinStatistics(tc);
+	sprintf(c, "ntstore= %d \tp_msync= %d \twritecomb= %d \t%s",
+			getNumNtStores(), getNumPMSyncs(), getNumWriteComb(), tc);
 }
 
 void printStatistics(FILE *stream)
@@ -145,7 +156,7 @@ void printStatistics(FILE *stream)
 	char a[1024];
 	getWrapImpl()->getStatistics(a);
 	char b[1024];
-	getPinStatistics(b);
+	getStatistics(b);
 	fprintf(stream, "\nWRAPSTATS \t%s \t%s\n", a, b);
 }
 
@@ -224,17 +235,16 @@ void wrapStore32(void *ptr, uint32_t value, WRAPTOKEN w)
 	getWrapImpl()->wrapImplStore32(ptr, value, w);
 }
 
-
-void persistentNotifyPin(void *v, size_t size)
+void persistentNotifyPin(void *v, size_t size, int isLogArea)
 {
 	//  Pin should overload this routine if running.
 	
 }
 
-void persistentSHMCreated(void *v, size_t size)
+void persistentSHMCreated(void *v, size_t size, bool isLogArea)
 {
 	if (_usingSCM)
-		persistentNotifyPin(v, size);
+		persistentNotifyPin(v, size, isLogArea);
 }
 
 
@@ -297,7 +307,7 @@ public:
 			close(_fdout);
 		}
 	}
-	void *PMalloc(size_t size)
+	void *PMalloc(size_t size, bool isLogArea)
 	{
 		if (_memchunk>0)
 		{
@@ -330,7 +340,7 @@ public:
 		{
 			if (isDebug())
 				allocatedPMem(v, size);	
-			persistentNotifyPin(v, size);
+			persistentNotifyPin(v, size, isLogArea);
 			persistentNotifyTracer(v, size);
 		}
 		Debug("pmalloc(%d) = %p to %p\n", (int)size, v, (void *)(size + (unsigned long)v));
@@ -389,7 +399,12 @@ PM _pm;
 
 void *pmalloc(size_t size)
 {
-	return _pm.PMalloc(size);
+	return _pm.PMalloc(size, false);
+}
+
+void *pmallocLog(size_t size)
+{
+	return _pm.PMalloc(size, true);
 }
 
 

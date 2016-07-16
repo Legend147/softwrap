@@ -39,6 +39,7 @@ AliasTableHash::AliasTableHash(WrapLogManager *manager, int size, int mt): LFHT(
 	m_restoreTime = 0;
 	m_logTime = 0;
 	m_totalRestores = 0;
+	m_maxWrapToken = -1;
 	__sync_synchronize();
 };
 
@@ -74,8 +75,11 @@ void AliasTableHash::onWrapOpen(int wrapToken)
 	//printf("numOpen=%d  size=%d items=%d\n", m_numOpen, m_arraySize, m_numItems);
 };
 
+//int m_in = 0;
 void AliasTableHash::onWrapClose(int wrapToken, WrapLogger *log)
 {
+	//printf("m_in=%d ", m_in);
+	//fflush(stdout);
 	//m_logQueue.push_back(log);
 	//__sync_sub_and_fetch(&m_numOpen, 1);
 	//m_numOpen--;
@@ -86,23 +90,35 @@ void AliasTableHash::onWrapClose(int wrapToken, WrapLogger *log)
 
 void *AliasTableHash::read(void *ptr, int size)
 {
-	return (void*)GetItem((uint64_t)ptr);
+	void *v = (void*)GetItem((uint64_t)ptr);
+	if (v == NULL)
+		return ptr;
+	return v;
 };
 
 void AliasTableHash::write(void *ptr, void *src, int size)
 {
 	//assert(0);
+
+	//m_in++;
+	printf("w");
+	fflush(stdout);
 	SetItem((uint64_t)ptr, (uint64_t)src, size);
 };
 
-uint64_t AliasTableHash::load(void *ptr)
+void *AliasTableHash::load(void *ptr)
 {
-	assert(0);
-	return (uint64_t)GetItem((uint64_t)ptr);
+	//assert(0);
+	//return (uint64_t)GetItem((uint64_t)ptr);
+	void *v = GetItemAddress((uint64_t)ptr);
+	if (v == NULL)
+		v = ptr;
+	return v;
 };
 
 void AliasTableHash::store(void *ptr, uint64_t value, int size)
 {
+	//m_in++;
 	SetItem((uint64_t)ptr, value, size);
 };
 
@@ -111,6 +127,8 @@ void AliasTableHash::restoreAllElements()
 {
 	m_totalRestores++;
 	long t = getNsTime();
+	//printf("r");
+	//m_in = 0;
 	for (int i = 0; i < m_arraySize; i++)
 	{
 		if (m_entries[i].key != 0)
@@ -125,6 +143,7 @@ void AliasTableHash::restoreAllElements()
 			{
 				//unsigned short u = m_entries[i].value;
 				//ntstore((void*)(m_entries[i].key), &u, 2);
+				assert(0);
 			}
 			else
 			{
@@ -133,6 +152,7 @@ void AliasTableHash::restoreAllElements()
 				if (m_entries[i].size > 8)
 				{
 					//printf("restoring\n");
+					//  TODO
 					//ntstore((void*)(m_entries[i].key), (void*)(m_entries[i].value), m_entries[i].size);
 					memcpy((void*)(m_entries[i].key), (void*)(m_entries[i].value), m_entries[i].size);
 					//printf("copied\n");
@@ -140,15 +160,16 @@ void AliasTableHash::restoreAllElements()
 				else
 					ntstore((void*)(m_entries[i].key), &(m_entries[i].value), m_entries[i].size);
 			}
-/*			asm volatile("sfence" : : : "memory");
+//			asm volatile("sfence" : : : "memory");  now use sfence();
 			m_entries[i].key = 0;
-			m_numItems--;
-	*/		//			printf("%d ", m_numItems);
+	//		m_numItems--;
+			//			printf("%d ", m_numItems);
 		}
+
 	}
 	//	usleep(1030);
 
-	p_msync();
+	//p_msync();
 
 
 	/*
@@ -195,7 +216,8 @@ void AliasTableHash::restoreAllElements()
 	*/
 	m_logTime += (getNsTime() - t2);
 	m_numItems = 0;
-	//p_msync();
+	clearBloom();
+	p_msync();
 
 };
 

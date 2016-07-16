@@ -62,6 +62,15 @@ int main(void)
 	else
 		printf("not equal\n");
 
+	printf("Rolled up test\n");
+	WRAPTOKEN w = wrapOpen();
+	*i = 4;
+	if (*i == 4)
+		printf("4!\n");
+	else
+		printf("Error!!\n");
+	wrapClose(w);
+
 	PS *s = (PS*)pmalloc(sizeof(PS));
 	s->l[2] = 2;
 	printf("s->l[2] = %d\n", (int)s->l[2]);
@@ -89,6 +98,18 @@ int main(void)
 	WrapInt f = 6;
 	printf("Trying copy\n");
 	e = f;
+
+	w = wrapOpen();
+	e = 7;
+	f = 8;
+	printf("e = %d \n", (int)e);
+	printf("f = %d \n", (int)f);
+	e = f;
+	if (e != f)
+		printf("Error, not equal!\n");
+	else
+		printf("passed\n");
+	wrapClose(w);
 
 	printStatistics(stdout);
 

@@ -242,7 +242,7 @@ void AT2::write(void *ptr, void *src, int size)
 	m_aliasTableHash->write(ptr, src, size);
 };
 
-uint64_t AT2::load(void *ptr)
+void *AT2::load(void *ptr)
 {
 	//  Thread's copy / WrAP's copy of Alias Table.
 	return m_aliasTableHash->load(ptr);

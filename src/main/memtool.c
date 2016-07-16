@@ -235,6 +235,19 @@ long getSec()
 	clock_gettime(CLOCK_REALTIME, &t);
 	return t.tv_sec;
 }
+
+long getUsTime()
+{
+	struct timeval t;
+	//  Get start of first wrap.
+	if (gettimeofday(&t, NULL) < 0)
+	{
+		perror("Error getting the time of day");
+		abort();
+	}
+	return (t.tv_sec * 1000000) + t.tv_usec;
+}
+
 long startsec = getSec();
 
 long getNsTime()
@@ -245,6 +258,67 @@ long getNsTime()
 	l = (t.tv_sec-startsec) * l + t.tv_nsec;
 	return l;
 }
+
+
+long _totalTime = 0;
+int _totalTics = 0;
+unsigned long _startTicTime = 0;
+
+void tic()
+{
+	_startTicTime = getUsTime();
+	_totalTics++;
+}
+double toc()
+{
+	/*  Calculate the latency in us.  */
+	long t = getUsTime() - _startTicTime;
+	_totalTime += t;
+	return t;
+}
+int pinTicRate(unsigned long maxTicsPerSecond)
+{
+	_totalTics++;
+	if (_startTicTime == 0)
+	{
+		_startTicTime = getUsTime();
+		return 0;
+	}
+	long l;
+	int i = -1;
+	while (((l=getUsTime()) - _startTicTime) < (1000000/maxTicsPerSecond))
+	{
+		i++;
+	}
+	_startTicTime = l;
+	return i;
+}
+
+
+int ticRate(unsigned long maxTicsPerSecond)
+{
+	static int y = 0;
+
+	int x = pinTicRate(maxTicsPerSecond);
+	y = x;
+	return y;
+}
+
+void ticReset(int doPrint)
+{
+	if (doPrint)
+	{
+		double d = _totalTime;
+		d /= _totalTics;
+		//d /= 1000;
+		printf("AverageTicToc thread= NA  averageCycles= NA  totalCycles= NA  totalTicTocs= %d  " \
+			"totalTimeUS= %lu  averageTimeUS= %f\n", _totalTics, _totalTime, d);
+	}
+	_totalTime = 0;
+	_totalTics = 0;
+	_startTicTime = 0;
+}
+
 
 
 
@@ -542,6 +616,12 @@ void ntstore(void *dest, void *src, int size)
 	}
 }
 
+//  For now, take the size and value as well and model as a streaming store.
+void clwb(void *dest, void *src, int size)
+{
+	ntstore(dest, src, size);
+}
+
 /*void ntObjectStore(void *dest, void *src, int size)
 {
 	int s = 0;
@@ -566,15 +646,27 @@ void msync()
 	assert(0);
 }
 
+void sfence()
+{
+	_mm_sfence();
+}
+
+void pcommit()
+{
+	p_msync();
+}
 
 void p_msync()
 {
 	//Debug("p_msync\n");
 	numpmsyncs++;
 
+	//  Fence.
+	sfence();
+
 	if (getSCMtwr() < 0)
 	{
-		_mm_mfence();
+		return;
 	}
 	else
 	{

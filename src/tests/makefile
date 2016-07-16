@@ -6,7 +6,7 @@ LIB = ../../lib
 BINS = $(BIN)/testsimple $(BIN)/testarray $(BIN)/testmap $(BIN)/testwrapbtree $(BIN)/bencharray \
 	$(BIN)/benchmap $(BIN)/arraytrace $(BIN)/arrayobject $(BIN)/arrayvalidate \
 	$(BIN)/mtarray $(BIN)/mtarrayrate $(BIN)/simpletest $(BIN)/testwrapvar \
-	$(BIN)/workerthreads $(BIN)/ssarray $(BIN)/ssarrayna
+	$(BIN)/workerthreads $(BIN)/ssarray $(BIN)/ssarrayna $(BIN)/ssbtree
 
 all: $(BINS)
 
@@ -34,6 +34,9 @@ $(BIN)/testwrapvar: testwrapvar.cpp WrapVar.h wrap.h libwrap.so
 $(BIN)/testwrapbtree: testwrapbtree.cpp WrapVar.h WrapBTree.h wrap.h libwrap.so
 	g++ $(CFLAGS) $(ATO4) -o $@ $< -L$(LIB) -lwrap 
 	#-DBTREE_DEBUG
+
+$(BIN)/ssbtree: ssbtree.cpp WrapVar.h WrapBTree.h wrap.h libwrap.so
+	g++ $(CFLAGS) -o $@ $< -L$(LIB) -lwrap 
 
 $(BIN)/testmap: testmap.cpp WrapMap.h wrap.h libwrap.so
 	g++ $(CFLAGS) -o $@ $< -L$(LIB) -lwrap

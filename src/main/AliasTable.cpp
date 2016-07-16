@@ -265,7 +265,7 @@ void AliasTable::write(void *ptr, void *src, int size)
 	checkReturnCode(rc);
 };
 
-uint64_t AliasTable::load(void *ptr)
+void *AliasTable::load(void *ptr)
 {
 	int hash = getHash(ptr);
 	int rc = pthread_rwlock_rdlock(&(head[hash].lock));
@@ -276,9 +276,12 @@ uint64_t AliasTable::load(void *ptr)
 	rc = pthread_rwlock_unlock(&(head[hash].lock));
 	checkReturnCode(rc);
 
+	//  TODO FIX
 	if (n == NULL)
-		return 0;
-	return (uint64_t)n->value;
+	{
+		return ptr;
+	}
+	return &(n->value);
 };
 
 void AliasTable::store(void *ptr, uint64_t value, int size)

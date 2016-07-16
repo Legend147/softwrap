@@ -31,7 +31,10 @@
 #include "memtool.h"
 #include "string.h"
 
-ATL::ATL(WrapLogManager *manager, int size, int thresh): AliasTableHash(manager, 128, 0)
+//  TODO need to implement tls tables!!  This impl will only support one thread at a time.
+//  Need a table per thread.
+
+ATL::ATL(WrapLogManager *manager, int size, int thresh): AliasTableHash(manager, size, 0)
 {
 	m_options = -1;
 	printf("ATL\n");
@@ -50,32 +53,64 @@ void ATL::onWrapOpen(int wrapToken)
 		m_options = WrapImpl::getOptions();
 	}
 	AliasTableHash::onWrapOpen(wrapToken);
+	//printf("o");
+	//fflush(stdout);
 }
 
 void ATL::restoreToCacheHierarchy()
 {
-		for (int i = 0; i < m_arraySize; i++)
+	for (int i = 0; i < m_arraySize; i++)
+	{
+		if (m_entries[i].key != 0)
 		{
-			if (m_entries[i].key != 0)
-			{
-				if (m_entries[i].size == 4)
-					*(int *)(m_entries[i].key) = m_entries[i].value;
-				else
-					memcpy((void*)(m_entries[i].key), (void*)(m_entries[i].value), m_entries[i].size);
-				//  TODO other sizes...
-			}
+			if (m_entries[i].size == 4)
+				*(int *)(m_entries[i].key) = m_entries[i].value;
+			else if (m_entries[i].size == 8)
+				*(uint64_t *)(m_entries[i].key) = m_entries[i].value;
+			else if (m_entries[i].size == 2)
+				*(short *)(m_entries[i].key) = m_entries[i].value;
+			else if (m_entries[i].size == 1)
+				*(char *)(m_entries[i].key) = m_entries[i].value;
+			else
+				assert(0);
+				//memcpy((void*)(m_entries[i].key), (void*)(m_entries[i].value), m_entries[i].size);
 		}
+	}
+	sfence();
+	for (int i = 0; i < m_arraySize; i++)
+	{
+		if (m_entries[i].key != 0)
+		{
+			clwb((void*)m_entries[i].key, &(m_entries[i].value), m_entries[i].size);
+			//  Clear.
+			m_entries[i].key = 0;
+			m_entries[i].value = 0;
+		}
+	}
+	p_msync();
 }
 
 void ATL::onWrapClose(int wrapToken, WrapLogger *log)
 {
 	AliasTableHash::onWrapClose(wrapToken, log);
+	/*
 	if (m_options == 1)
 	{
-		p_msync();
-		restoreToCacheHierarchy();
+		assert(0);
+	}
+	else if (m_options == 2)
+	{
+		//  Restore
+		restoreAllElements();
+		clearHash();
 	}
 	else
-		restoreAllElements();
-	clearHash();
+	{
+		restoreToCacheHierarchy();
+	}
+	*/
+	//printf("c");
+	//fflush(stdout);
+	restoreAllElements();
+	//clearHash();
 }

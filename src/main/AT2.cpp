@@ -263,7 +263,7 @@ void AT2::write(void *ptr, void *src, int size)
 	m_aliasTableHash->write(ptr, src, size);
 };
 
-uint64_t AT2::load(void *ptr)
+void *AT2::load(void *ptr)
 {
 	//  Thread's copy / WrAP's copy of Alias Table.
 	void *v = m_aliasTableHash->GetItemAddress((uint64_t)ptr);
@@ -272,8 +272,8 @@ uint64_t AT2::load(void *ptr)
 		v = otherTable->GetItemAddress((uint64_t)ptr);
 	}
 	if (v == NULL)
-		return *(uint64_t*)ptr;
-	return *(uint64_t*)v;
+		v = ptr;
+	return v;
 }
 
 void AT2::store(void *ptr, uint64_t value, int size)

@@ -31,8 +31,6 @@
 #include<iostream>
 #include<limits>
 
-extern void persistentNotifyPin(void *v, size_t size);
-
 namespace pstd {
  
 template<typename T>

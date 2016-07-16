@@ -55,7 +55,7 @@ void clflush(volatile void *p);
 
 uint64_t rdtsc();
 
-//void wtstore(void *dest, void *src, int size);
+void streamingStore(int *p, int a);
 
 void ntstore(void *dest, void *src, int size);
 
@@ -66,11 +66,25 @@ long getNsTime();
 
 //void ntObjectStore(void *dest, void *src, int size);
 
+void tic();
+
+double toc();
+
+int ticRate(unsigned long maxTicsPerSecond);
+
+void ticReset(int doPrint);
+
 void cacheflush();
 
 void p_msync();
+void pcommit();
 
 void msync();
+
+void sfence();
+
+//  Eventually, this will just need the dest pointer, but we want to put something in the store buffer.
+void clwb(void *dest, void *src, int size);
 
 void *mallocAligned(size_t size);
 

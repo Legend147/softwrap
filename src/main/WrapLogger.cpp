@@ -51,7 +51,7 @@ WrapLogger::WrapLogger(int size, char *ptr) : _log(ptr)
 	m_dofree = false;
 	if (_log == NULL)
 	{
-		_log = (char *)pmalloc(size);
+		_log = (char *)pmallocLog(size);
 		m_dofree = true;
 	}
 	assert(_log != NULL);
