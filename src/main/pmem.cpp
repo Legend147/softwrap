@@ -60,14 +60,23 @@ int find(void *v)
 
 void freedPMem(void *v)
 {
-	printf("freed %p\n", v);
+	//printf("freed %p\n", v);
 	pmem.erase(pmem.begin() + find(v));
 }
 
 void allocatedPMem(void *start, int size)
 {
-	printf("allocated %p %d\n", start, size);
+	//printf("allocated %p %d\n", start, size);
 	pmem.push_back(chunk());
 	pmem[pmem.size()-1].start = start;
 	pmem[pmem.size()-1].size = size;
 }
+
+void reallocedPMem(void *p, int nsize, void *old)
+{
+	//printf("reallocated %p %d %p\n", p, nsize, old);
+
+	freedPMem(old);
+	allocatedPMem(p, nsize);
+}
+

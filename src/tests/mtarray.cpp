@@ -39,7 +39,8 @@
 #include "tracer.h"
 
 int arraySize;
-int numThreads, threadMemSize, rwRatio, wrapSize, numWraps, delay;
+int numThreads, threadMemSize, wrapSize, numWraps, delay;
+float rwRatio;
 //int *data;
 
 long elapsed(struct timeval start)
@@ -57,7 +58,7 @@ long elapsed(struct timeval start)
 	return us;
 }
 
-void *test(void *nn)
+void *testOld(void *nn)
 {
 	int n = (uint64_t)nn;
 	int i,j,index;
@@ -88,10 +89,66 @@ void *test(void *nn)
 
 			wrapStore32(data+index, i, w);
 
-			for (reads = 0; reads < rwRatio; reads++)
+			if (rwRatio >= 1)
 			{
-				//wrapRead(data+(random()%arraySize), sizeof(int), w);
+				for (reads = 0; reads < rwRatio; reads++)
+				{
+					//wrapRead(data+(random()%arraySize), sizeof(int), w);
+					wrapLoad32(data+(random()%arraySize), w);
+				}
+			}
+			if (delay > 0)
+			{
+				struct timeval start;
+				gettimeofday(&start, NULL);
+				while (elapsed(start) < delay);
+			}
+		}
+		if (rwRatio < 1)
+		{
+			for (reads = 0; reads < (rwRatio*wrapSize); reads++)
+			{
 				wrapLoad32(data+(random()%arraySize), w);
+			}
+		}
+		wrapClose(w);
+	}
+	//printf("Done %d\n", n);
+	pfree(data);
+
+	return NULL;
+}
+
+void *test(void *nn)
+{
+	int n = (uint64_t)nn;
+	int i, index;
+	float nreads, nwrites;
+	float ratio = 0.0;
+	int *data = (int *)pmalloc(arraySize * sizeof(int));
+	printf("Array size=%d integers with start address: %p\n", arraySize, data);
+
+	for (i=0; i < numWraps; i+=1)
+	{
+		attachThreadToCore(6 - (n % 6));
+		nreads = nwrites = 0.0;
+		WRAPTOKEN w = wrapOpen();
+
+		do
+		{
+			ratio = nreads / nwrites;
+			if (ratio < rwRatio)
+			{
+				//  Do Read
+				wrapLoad32(data+(random()%arraySize), w);
+				nreads++;
+			}
+			else
+			{
+				index = random() % threadMemSize;
+				index += n*threadMemSize;
+				wrapStore32(data+index, i, w);
+				nwrites++;
 			}
 
 			if (delay > 0)
@@ -101,6 +158,8 @@ void *test(void *nn)
 				while (elapsed(start) < delay);
 			}
 		}
+		while ((nreads+nwrites) < wrapSize);
+
 		wrapClose(w);
 	}
 	//printf("Done %d\n", n);
@@ -134,6 +193,17 @@ int getIntArg(char *c)
 	return val;
 }
 
+float getFloatArg(char *c)
+{
+	float val = atof(c);
+	if (val == 0)
+	{
+		if (c[0] != '0')
+			return -1.0;
+	}
+	return val;
+}
+
 int main(int argc, char *argv[])
 {
 	if ((argc < 6) || (argc > 9))
@@ -144,7 +214,7 @@ int main(int argc, char *argv[])
 	//mtarray numThreads threadMemSize rwRatio maxWrapSize numWraps [wrapType [options]
 	numThreads = getIntArg(argv[1]);
 	threadMemSize = getIntArg(argv[2]);
-	rwRatio = getIntArg(argv[3]);
+	rwRatio = getFloatArg(argv[3]);
 	wrapSize = getIntArg(argv[4]);
 	numWraps = getIntArg(argv[5]);
 	delay = getIntArg(argv[6]);

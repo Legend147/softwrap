@@ -251,6 +251,7 @@ class PM
 	int _fdout;
 	void *_base;
 	unsigned _last;
+	unsigned _memchunk;
 #define MemSize (1<<16)
 public:
 	PM()
@@ -280,6 +281,12 @@ public:
 				abort();
 			}
 		}
+		if (_usemmap==0)
+		{
+			_memchunk = 1<<27;
+			_last = _memchunk+1;
+			_base = NULL;
+		}
 	}
 	~PM()
 	{
@@ -292,6 +299,21 @@ public:
 	}
 	void *PMalloc(size_t size)
 	{
+		if (_memchunk>0)
+		{
+			void *v = (void *)((uint64_t)_base + _last);
+			_last += size;
+			if (_last > _memchunk)
+			{
+				_base = malloc(_memchunk);
+				v = _base;
+				size = 0;
+				allocatedPMem(_base, _memchunk);
+				_last += size;
+			}
+			Debug("PMalloc(size=%d) _last=%d _memchunk=%d\n", size, _last, _memchunk);
+			return v;
+		}
 		if (_usemmap)
 		{
 			void *v = (void *)((uint64_t)_base + _last);
@@ -316,7 +338,7 @@ public:
 	}
 	void PFree(void *ptr)
 	{
-		if (_usemmap)
+		if (_usemmap || (_memchunk>0))
 			return;
 		//  Call into pin and mark as free.
 		if (_usingSCM)
@@ -329,6 +351,37 @@ public:
 				return;
 		}
 		free(ptr);
+	}
+	void *PCalloc(size_t nmemb, size_t size)
+	{
+		size_t tsize = (nmemb * size);
+		void *p = PMalloc(tsize);
+		int *pi = (int*)p;
+		for (unsigned i = 0; i < (tsize / 4); i++)
+			__builtin_ia32_movnti(pi++, 0);
+
+		//  Get the last bytes that are unaligned if any.
+		char *b = (char *)p;
+		for (unsigned i = 0; i < (tsize&3); i++)
+		{
+			b[size-i-1] = 0;
+			clflush(b);
+		}
+		return p;
+	}
+	void *PRealloc(void *ptr, size_t size)
+	{
+		if (_usemmap || (_memchunk>0))
+		{
+			void *p = PMalloc(size);
+			bcopy(p, ptr, size);
+			PFree(ptr);
+			return p;
+		}
+		void *p = realloc(ptr, size);
+		if (isDebug() && _usingSCM)
+			reallocedPMem(p, size, ptr);
+		return p;
 	}
 };
 
@@ -343,6 +396,15 @@ void *pmalloc(size_t size)
 void pfree(void *ptr)
 {
 	return _pm.PFree(ptr);
+}
+
+void *pcalloc(size_t nmemb, size_t size)
+{
+	return _pm.PCalloc(nmemb, size);
+}
+void *prealloc(void *ptr, size_t size)
+{
+	return _pm.PRealloc(ptr, size);
 }
 
 /*

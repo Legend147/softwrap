@@ -41,9 +41,11 @@
 #include <list>
 #include <vector>
 #include <iostream>
+#include "emmintrin.h"
 #include "pin.H"
 #include "pmem.h"
 #include "wrap.h"
+#include "memtool.h"
 #include "debug.h"
 
 using std::cout;
@@ -69,6 +71,7 @@ int totalThreads = 0;
 #define InitLock PIN_InitLock
 
 PIN_LOCK pmemlock;
+PIN_LOCK tracelock;
 
 /**
  * checkwrapinit  no errors are printed before main is called also
@@ -82,12 +85,31 @@ PIN_LOCK pmemlock;
  *
  */
 
+KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
+		"o", "wrapAnalysis.out", "Output file for SCM Wrap Analysis");
+//  TODO
+//ofstream OutputFile;
+#define OutputFile cout
+
 //  Command line options for the pin wrap tool.
-KNOB<BOOL>   KnobTraceWrap(KNOB_MODE_WRITEONCE, "pintool", "tracewrap",
+KNOB<BOOL> KnobTraceWrap(KNOB_MODE_WRITEONCE, "pintool", "tracewrap",
 		"0", "trace wrap open and close function calls");
 
-KNOB<BOOL>   KnobCheckInitWrap(KNOB_MODE_WRITEONCE, "pintool", "checkwrapinit",
+KNOB<BOOL> KnobCheckInitWrap(KNOB_MODE_WRITEONCE, "pintool", "checkwrapinit",
 		"0", "check wrap initialization routines before main calls");
+
+KNOB<BOOL> KnobByFile(KNOB_MODE_WRITEONCE, "pintool", "sortfile",
+		"1", "sort output by file");
+
+KNOB<BOOL> KnobDisplayCalls(KNOB_MODE_WRITEONCE, "pintool", "displaycalls",
+		"0", "display call stacks");
+
+KNOB<BOOL> KnobTraceErrors(KNOB_MODE_WRITEONCE, "pintool", "traceerrors",
+		"0", "trace and output on every persistent unwrapped error");
+
+KNOB<BOOL> KnobWrapErrors(KNOB_MODE_WRITEONCE, "pintool", "wraperrors",
+		"1", "show no wrap open errors");
+
 //KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o",
 //	"pinwraptrace.out", "specify memory trace file");
 /*
@@ -139,14 +161,23 @@ void setInWrapLogInit(int flag)
 
 bool isInWrapRead()
 {
-	return (numWrapsOpen[PIN_ThreadId()] > 0) && ((inWrapFlags[PIN_ThreadId()]&IN_WRAP_READ_FLAG) > 0);
+	//  @TODO check if wrapOpen
+	//return (numWrapsOpen[PIN_ThreadId()] > 0) && ((inWrapFlags[PIN_ThreadId()]&IN_WRAP_READ_FLAG) > 0);
+	return ((inWrapFlags[PIN_ThreadId()]&IN_WRAP_READ_FLAG) > 0);
 }
 
 bool isInWrapWrite()
 {
-	return (numWrapsOpen[PIN_ThreadId()] > 0) && ((inWrapFlags[PIN_ThreadId()]&IN_WRAP_WRITE_FLAG) > 0);
+	//  @TODO check if wrapOpen
+	//return (numWrapsOpen[PIN_ThreadId()] > 0) && ((inWrapFlags[PIN_ThreadId()]&IN_WRAP_WRITE_FLAG) > 0);
+	return ((inWrapFlags[PIN_ThreadId()]&IN_WRAP_WRITE_FLAG) > 0);
 }
 
+
+bool isWrapOpen()
+{
+	return ((numWrapsOpen[PIN_ThreadId()]) > 0);
+}
 
 bool isInPMalloc()
 {
@@ -163,6 +194,44 @@ bool continueCheck()
 	if (isInMain)
 		return true;
 	return KnobCheckInitWrap.Value();
+}
+
+//  TODO make this per thread!!
+typedef struct ReadWriteBytesType
+{
+	ADDRINT _address;
+	uint64_t size;
+	int read;
+} ReadWriteBytes;
+std::list<ReadWriteBytes> ReadWriteBytesList;
+
+//  This function is called on a wrapRead(addr, size) to mark the bytes as ok and not to spawn errors.
+//  It adds to a list which is cleared on wrapClose calls.
+//  Also creates unsafe entries on conflicts of wrapWrite(addr, size, val).
+//  TODO get/pass oer threadid
+void setWrapReadWriteBytes(ADDRINT addr, uint32_t size, int read)
+{
+	ReadWriteBytes b;
+	b._address = addr;
+	b.size = size;
+	b.read = read;
+	//cout << "setWrapReadWriteBytes " << addr << " " << size << endl;
+	ReadWriteBytesList.push_back(b);
+}
+
+int wrapReadBytesSafe(ADDRINT addr, int size)
+{
+	int safe = 0;
+	for (std::list<ReadWriteBytes>::iterator it = ReadWriteBytesList.begin(); it != ReadWriteBytesList.end(); it++)
+	{
+		ReadWriteBytes b = *it;
+		if ((addr >= b._address) && (addr <= (b._address+b.size)) && ((addr+size) <= (b._address+b.size)))
+		{
+			//  Covered by a read or write.
+			safe = b.read;
+		}
+	}
+	return safe;
 }
 
 VOID markWrapOpen(int returnValue, int threadID)
@@ -187,6 +256,13 @@ VOID markWrapClose(int wrapToken, int threadID)
 		printf("%s", buf);
 	}
 	numWrapsOpen[threadID]--;
+	assert(numWrapsOpen[threadID] >= 0);
+	if (numWrapsOpen[threadID] == 0)
+	{
+		//  Clear the read/write list.
+		//  TODO per thread.
+		ReadWriteBytesList.clear();
+	}
 }
 
 void *PMalloc(size_t size)
@@ -206,11 +282,14 @@ void *PMalloc(size_t size)
 	GetLock(&pmemlock, PIN_ThreadId());
 	allocatedPMem(v, size);
 	ReleaseLock(&pmemlock);
+
+	printf("returned\n");
 	return v;
 }
 
 void PFree(void *p)
 {
+	printf("in pin pfree!\n");
 	pfree(p);
 	if (KnobTraceWrap.Value())
 	{
@@ -223,7 +302,43 @@ void PFree(void *p)
 	freedPMem(p);
 	ReleaseLock(&pmemlock);
 }
+void *PCalloc(size_t nmemb, size_t size)
+{
+	inWrapFlags[PIN_ThreadId()] |= IN_PMALLOC_FLAG;
+	void *v = pcalloc(nmemb, size);
+	inWrapFlags[PIN_ThreadId()] ^= IN_PMALLOC_FLAG;
 
+	if (KnobTraceWrap.Value())
+	{
+		char buf[128];
+		sprintf(buf, "pcalloc(%lu, %lu)=%p\n", nmemb, size, v);
+		printf("%s", buf);
+		//LOG(buf);
+	}
+	GetLock(&pmemlock, PIN_ThreadId());
+	allocatedPMem(v, size);
+	ReleaseLock(&pmemlock);
+	return v;
+}
+void *PRealloc(void *ptr, size_t size)
+{
+	printf("inprealloc\n\n");
+	inWrapFlags[PIN_ThreadId()] |= IN_PMALLOC_FLAG;
+	void *v = prealloc(ptr, size);
+	inWrapFlags[PIN_ThreadId()] ^= IN_PMALLOC_FLAG;
+
+	if (KnobTraceWrap.Value())
+	{
+		char buf[128];
+		sprintf(buf, "prealloc(%p, %lu)=%p\n", ptr, size, v);
+		printf("%s", buf);
+		//LOG(buf);
+	}
+	GetLock(&pmemlock, PIN_ThreadId());
+	reallocedPMem(v, size, ptr);
+	ReleaseLock(&pmemlock);
+	return v;
+}
 
 int checkSymbolName(RTN rtn, const char *name)
 {
@@ -282,6 +397,12 @@ typedef struct CallEntryStruct
 typedef std::vector<CallEntry> CallStack;
 CallStack ThreadCallStacks[MAXTHREADS];
 
+//  Compare procedures by file name.
+bool compare_procedures_byfile (const Procedure *first, const Procedure *second)
+{
+	return strcmp(first->fileName.c_str(), second->fileName.c_str()) < 0;
+}
+
 
 void printStatistics()
 {
@@ -307,7 +428,7 @@ int equalCallStacks(CallStack &a, CallStack &b)
 		//  TODO option to compare line number call stack default no.
 		//  TODO continued.... don't compare line numbers option or only compare line numbers, etc.
 		//if (ea.lineNumber != eb.lineNumber)
-			//return 0;
+		//return 0;
 	}
 	return 1;
 }
@@ -347,7 +468,6 @@ void outputLocation(const char *fname, INT32 line, INT32 column, WrapErrorType t
 
 void outputWrapError(Procedure *p, WrapError e)
 {
-	//  TODO if not no traces...
 	outputLocation(p->fileName.c_str(), e.lineNumber, e.column, e.warningType);
 }
 
@@ -370,7 +490,8 @@ int updateNotifyWrapErrors(Procedure *p, WrapErrorType t, int lineNumber, int co
 	e.warningType = t;
 	e.count = 1;
 	p->wrapErrors.push_back(e);
-	outputWrapError(p, e);
+	if (KnobTraceErrors.Value())
+		outputWrapError(p, e);
 	return 1;
 }
 
@@ -378,16 +499,19 @@ void dumpDebugInfo(ADDRINT instructionAddress, WrapErrorType t, Procedure *p)
 {
 	INT32 column, line;
 	string fileName;
+
+	if (p == NULL)
+		return;
+
 	PIN_LockClient();
 	PIN_GetSourceLocation(instructionAddress, &column, &line, &fileName);
 	PIN_UnlockClient();
 
-	if (p==NULL)
-		return;
+	//GetLock(&tracelock, PIN_ThreadId());
+
 	p->nWrapErrors++;
 
-	if (!updateNotifyWrapErrors(p, t, line, column))
-		return;
+	updateNotifyWrapErrors(p, t, line, column);
 
 	//  Compare call stacks.
 	if (followedNewCallStack(p))
@@ -401,19 +525,23 @@ void dumpDebugInfo(ADDRINT instructionAddress, WrapErrorType t, Procedure *p)
 		//  TODO if trace all
 		//  outputLocation(fileName.c_str(), line, column, str);
 	}
+	//ReleaseLock(&tracelock);
 }
 
-void checkMemRead(void *addr, ADDRINT instructionAddress, Procedure *p)
+
+void checkMemRead(void *addr, ADDRINT instructionAddress, int size, Procedure *p)
 {
 	//int tid = PIN_ThreadId();
 	if (isInWrapLogInit())
 		return;
+	//  TODO add isinpmemsize argument
 	if (!isInWrapRead() && isInPMem(addr))
 	{
 		//char buf[256];
 		//sprintf(buf, "Error - Persistent memory read access out of a wrapRead at address %p for thread %d\n", addr, tid);
 		//LOG(buf);
-		dumpDebugInfo(instructionAddress, UnWrappedRead, p);
+		if (!wrapReadBytesSafe((ADDRINT)addr, size))
+			dumpDebugInfo(instructionAddress, UnWrappedRead, p);
 	}
 }
 
@@ -422,14 +550,41 @@ void checkMemWrite(void *addr, ADDRINT instructionAddress, Procedure *p)
 	//int tid = PIN_ThreadId();
 	if (isInWrapLogInit())
 		return;
-	if (!isInWrapWrite() && isInPMem(addr) && !isInPMalloc())
+	//  TODO add size to this call and isinpmem call
+	if (isInPMem(addr) && !isInPMalloc())
 	{
-		//char buf[256];
-		//sprintf(buf, "Error - Persistent memory write access out of a wrap at address %p for thread %d\n", addr, tid);
-		//LOG(buf);
-		dumpDebugInfo(instructionAddress, UnWrappedWrite, p);
+		if (!isInWrapWrite())
+		{
+			//char buf[256];
+			//sprintf(buf, "Error - Persistent memory write access out of a wrap at address %p for thread %d\n", addr, tid);
+			//LOG(buf);
+			dumpDebugInfo(instructionAddress, UnWrappedWrite, p);
+		}
+		else
+		{
+			//  We're in wrap write, so make sure wrap is open.
+			//if (!isWrapOpen())
+			{
+				//dumpDebugInfo(instructionAddress, NoWrapOpen, p);
+			}
+		}
 	}
 }
+
+VOID checkWrapOpen(Procedure *p, ADDRINT instructionAddress)
+{
+	if (!continueCheck())
+		return;
+
+	if (!KnobWrapErrors.Value())
+		return;
+
+	if (!isWrapOpen())
+	{
+		dumpDebugInfo(instructionAddress, NoWrapOpen, p);
+	}
+}
+
 
 
 VOID onMemRead(VOID * ip, VOID * addr, int size, Procedure *p)
@@ -437,7 +592,8 @@ VOID onMemRead(VOID * ip, VOID * addr, int size, Procedure *p)
 	if (!continueCheck())
 		return;
 
-	checkMemRead(addr, (ADDRINT)ip, p);
+	checkMemRead(addr, (ADDRINT)ip, size, p);
+	//  TODO add size to isinpmem
 	if (isInPMem((void*)addr))
 	{
 		atomicIncrement(scmReads, 1);
@@ -639,10 +795,19 @@ VOID InstrumentRoutine(RTN rtn, VOID *v)
 		RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)incrementCount, IARG_PTR, &(isInMain), IARG_END);
 	}
 
+
 	//  Insert a call to increment the routine count.
 	RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)incrementCount, IARG_PTR, &(rc->_rtnCount), IARG_END);
 	//  Insert a call to note in routine.
 	RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)enterProcedure, IARG_PTR, rc, IARG_INST_PTR, IARG_END);
+
+	if (checkSymbolName(rtn, "wrapRead") || checkSymbolName(rtn, "wrapLoad16") ||
+			checkSymbolName(rtn, "wrapLoad32") || checkSymbolName(rtn, "wrapLoad64") ||
+			checkSymbolName(rtn, "wrapWrite") || checkSymbolName(rtn, "wrapStore16") ||
+			checkSymbolName(rtn, "wrapStore32") || checkSymbolName(rtn, "wrapStore64"))
+	{
+		RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)checkWrapOpen, IARG_PTR, rc, IARG_INST_PTR, IARG_END);
+	}
 
 	// For each instruction of the routine
 	for (INS ins = RTN_InsHead(rtn); INS_Valid(ins); ins = INS_Next(ins))
@@ -652,17 +817,36 @@ VOID InstrumentRoutine(RTN rtn, VOID *v)
 
 		//  Check the memory references.
 		Instruction(ins, rc);
+
+		if( INS_IsRet(ins) )
+		{
+			// instrument each return instruction.
+			// IPOINT_TAKEN_BRANCH always occurs last after IPOINT_BEFORE the return.
+			INS_InsertCall( ins, IPOINT_BEFORE, (AFUNPTR)exitProcedure, IARG_PTR, rc, IARG_END);
+		}
 	}
 	//  Insert a call to return from routine.
-	RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)exitProcedure, IARG_PTR, rc, IARG_END);
+	//RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)exitProcedure, IARG_PTR, rc, IARG_END);
 
 
 	RTN_Close(rtn);
 }
 
+struct FileInfo
+{
+	string fileName;
+	int routines, wrapErrors, wrapLines;
+};
+
 void PrintRoutines()
 {
 	cout << endl << "Routine Detail:" << endl;
+	string lastFile;
+	FileInfo finfo;
+	finfo.routines = 0;
+	finfo.wrapErrors = 0;
+	finfo.wrapLines = 0;
+	std::list<FileInfo> fileInfoList;
 
 	for (std::list<Procedure*>::iterator it = ProcedureList.begin(); it != ProcedureList.end(); it++)
 	{
@@ -670,7 +854,31 @@ void PrintRoutines()
 
 		if (p->nWrapErrors > 0)
 		{
-			cout << "Function: " << p->functionName << " File: " << p->fileName << " Line: " << p->lineNumber << " WrapErrors: " << p->nWrapErrors << endl;
+			if (KnobByFile.Value() == 1)
+			{
+				if (lastFile != p->fileName)
+				{
+					//  Add the last file info if exists.
+					if (finfo.wrapLines > 0)
+						fileInfoList.push_back(finfo);
+
+					lastFile = p->fileName;
+					cout << endl << "File: " << lastFile << endl;
+					finfo.fileName = lastFile;
+					finfo.routines = 0;
+					finfo.wrapErrors = 0;
+					finfo.wrapLines = 0;
+				}
+			}
+
+			cout << "Function: " << p->functionName;
+			if (KnobByFile.Value() == 0)
+				cout << " File: " << p->fileName;
+			cout << " Line: " << p->lineNumber << " WrapErrors: " << p->nWrapErrors << endl;
+
+			finfo.routines++;
+			finfo.wrapErrors += p->nWrapErrors;
+			finfo.wrapLines += p->wrapErrors.size();
 
 			for (unsigned int ei = 0; ei < p->wrapErrors.size(); ei++)
 			{
@@ -678,9 +886,10 @@ void PrintRoutines()
 				outputWrapError(p, err);
 			}
 
-			cout << " Called From:" << endl;
-			if (p->callStacks.size() > 0)
+			if (KnobDisplayCalls.Value() && (p->callStacks.size() > 0))
 			{
+				cout << " Called From:" << endl;
+
 				for (std::list<CallStack>::iterator stack_it = p->callStacks.begin(); stack_it != p->callStacks.end(); stack_it++)
 				{
 					CallStack s = *stack_it;
@@ -697,8 +906,37 @@ void PrintRoutines()
 					cout << endl << endl;
 				}
 			}
+
+			if (KnobByFile.Value() == 0)
+				cout << endl;
 		}
 	}
+	//  Add the last file info if exists.
+	if (finfo.wrapLines > 0)
+		fileInfoList.push_back(finfo);
+
+	long totalR = 0;
+	long totalE = 0;
+	long totalLines = 0;
+	cout << endl;
+	cout << "File Summary:" << endl;
+	//unsigned int fn = 40;
+	//cout << setw(fn) << "fileName" << setw(12) << "routines" << setw(12) << "wrapErrors" << setw(16) << "wrapLineErrors" << endl;
+
+	cout << setw(12) << "routines" << setw(12) << "wrapErrors" << setw(16) << "wrapLineErrors" << "    fileName" << endl;
+	for (std::list<FileInfo>::iterator it = fileInfoList.begin(); it != fileInfoList.end(); it++)
+	{
+		//cout << setw(fn) << ((it->fileName.size() > fn)?it->fileName.substr(it->fileName.size() - fn):it->fileName);
+		cout <<	setw(12) << it->routines << setw(12) <<
+				it->wrapErrors << setw(16) << it->wrapLines;
+		cout << "    " << it->fileName << endl;
+		totalR += it->routines;
+		totalE += it->wrapErrors;
+		totalLines += it->wrapLines;
+	}
+
+	cout << endl;
+	cout << setw(12) << totalR << setw(12) << totalE << setw(16) << totalLines << "    FileSummaryTotals for " << fileInfoList.size() << " files" << endl;
 }
 
 unsigned long PrintRoutineSummary()
@@ -708,13 +946,17 @@ unsigned long PrintRoutineSummary()
 			<< setw(18) << "Address" << " "
 			<< setw(12) << "Calls" << " "
 			<< setw(12) << "Instructions" << " "
-			<< setw(12) << "WrapErrors" << endl;
+			<< setw(12) << "WrapErrors" << " "
+			<< setw(16) << "WrapLineErrors" << "    "
+			<< "Filename" << endl;
 
 	unsigned long total = 0;
+	unsigned long totalLines = 0;
 	for (std::list<Procedure*>::iterator it = ProcedureList.begin(); it != ProcedureList.end(); it++)
 	{
 		Procedure *p = *it;
 		total += p->nWrapErrors;
+		totalLines += p->wrapErrors.size();
 
 		//  TODO option dump all procedure usage counts
 		if ((p->nWrapErrors > 0) || (0))
@@ -725,11 +967,13 @@ unsigned long PrintRoutineSummary()
 				<< setw(18) << hex << p->_address << dec <<" "
 				<< setw(12) << p->_rtnCount << " "
 				<< setw(12) << p->_icount << " "
-				<< setw(12) << p->nWrapErrors << endl;
+				<< setw(12) << p->nWrapErrors << " "
+				<< setw(16) << p->wrapErrors.size() << "    "
+				<< p->fileName << endl;
 		}
 	}
 	cout << endl;
-	cout << "Total Wrap Errors " << total << endl;
+	cout << "totalWrapErrors " << total << "    totalWrapLineErrors " << totalLines << endl;
 	return total;
 }
 
@@ -743,60 +987,79 @@ VOID Routine(RTN rtn, VOID *v)
 		RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)setInWrapLogInit, IARG_UINT32, 1, IARG_END);
 		RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)setInWrapLogInit, IARG_UINT32, 0, IARG_END);
 		RTN_Close(rtn);
-		return;
 	}
 	//LOG(RTN_Name(rtn) + " " + PIN_UndecorateSymbolName(RTN_Name(rtn), UNDECORATION_NAME_ONLY) + "\n");
-	if (checkSymbolName(rtn, "wrapOpen"))
+	else if (checkSymbolName(rtn, "wrapOpen"))
 	{
 		RTN_Open(rtn);
 		// Insert a call at the exit point of the wrap open routine to increment wrap open count for the thread.
 		RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)markWrapOpen, IARG_FUNCRET_EXITPOINT_VALUE,  IARG_THREAD_ID, IARG_END);
 		RTN_Close(rtn);
-		return;
 	}
-	if (checkSymbolName(rtn, "wrapClose"))
+	else if (checkSymbolName(rtn, "wrapClose"))
 	{
 		RTN_Open(rtn);
 		// Insert a call at the entry point of the wrap close routine to decrement the thread's wrap open count.
 		RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)markWrapClose, IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
 				IARG_THREAD_ID, IARG_END);
 		RTN_Close(rtn);
-		return;
 	}
-	if (checkSymbolName(rtn, "wrapRead") || checkSymbolName(rtn, "wrapLoad32") || checkSymbolName(rtn, "wrapLoad64"))
+	else if (checkSymbolName(rtn, "wrapRead") || checkSymbolName(rtn, "wrapLoad16") ||
+			checkSymbolName(rtn, "wrapLoad32") || checkSymbolName(rtn, "wrapLoad64"))
 	{
 		RTN_Open(rtn);
 		RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)setInWrapRead, IARG_UINT32, 1, IARG_END);
 		RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)setInWrapRead, IARG_UINT32, 0, IARG_END);
+		if (checkSymbolName(rtn, "wrapRead"))
+		{
+			//  Mark bytes as safely read.
+			cout << "inserted before wrapRead" << endl;
+			RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)setWrapReadWriteBytes, IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_FUNCARG_ENTRYPOINT_VALUE, 1, IARG_UINT32, 1, IARG_END);
+		}
 		RTN_Close(rtn);
-		return;
 	}
-	if (checkSymbolName(rtn, "wrapWrite") || checkSymbolName(rtn, "wrapStore32") || checkSymbolName(rtn, "wrapStore64"))
+	else if (checkSymbolName(rtn, "wrapWrite") || checkSymbolName(rtn, "wrapStore16") ||
+			checkSymbolName(rtn, "wrapStore32") || checkSymbolName(rtn, "wrapStore64"))
 	{
 		RTN_Open(rtn);
 		RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)setInWrapWrite, IARG_UINT32, 1, IARG_END);
 		RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)setInWrapWrite, IARG_UINT32, 0, IARG_END);
+		if (checkSymbolName(rtn, "wrapWrite"))
+		{
+			//  If doing a wrap write, then mark bytes as not safe to read again.
+			RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)setWrapReadWriteBytes, IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_FUNCARG_ENTRYPOINT_VALUE, 2, IARG_UINT32, 0, IARG_END);
+		}
 		RTN_Close(rtn);
-		return;
 	}
 
 	//  Capture persistent memory locations from the application space when notifying pin.
-	if (checkSymbolName(rtn, "pmalloc"))
+	else if (checkSymbolName(rtn, "pmalloc"))
 	{
-		RTN_Replace(rtn, (AFUNPTR)PMalloc);
-		return;
+		cout << "found pmalloc" << endl;
+		cout << RTN_Replace(rtn, (AFUNPTR)PMalloc);
+		cout << endl;
 	}
 	//  Capture persistent memory frees from the application space when notifying pin.
-	if (checkSymbolName(rtn, "pfree"))
+	else if (checkSymbolName(rtn, "pfree"))
 	{
 		RTN_Replace(rtn, (AFUNPTR)PFree);
-		return;
+	}
+
+	//  Capture persistent memory locations from the application space when notifying pin.
+	else if (checkSymbolName(rtn, "pcalloc"))
+	{
+		RTN_Replace(rtn, (AFUNPTR)PCalloc);
+	}
+	//  Capture persistent memory locations from the application space when notifying pin.
+	else if (checkSymbolName(rtn, "prealloc"))
+	{
+		RTN_Replace(rtn, (AFUNPTR)PRealloc);
 	}
 
 	//  Count streaming store operations from C function for now.
 	//if (checkSymbolName(rtn, "ntstore"))
 	//  TODO change everything to a consistent ntstore, streamstore or something....
-	if (checkSymbolName(rtn, "streamingStore"))
+	else if (checkSymbolName(rtn, "streamingStore"))
 	{
 		RTN_Open(rtn);
 		RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)onStreamingStore,
@@ -805,27 +1068,23 @@ VOID Routine(RTN rtn, VOID *v)
 				IARG_FUNCARG_ENTRYPOINT_VALUE, 1,
 				IARG_END);
 		RTN_Close(rtn);
-		return;
 	}
 	//  Overload cache line flush operations.
-	if (checkSymbolName(rtn, "clflush"))
+	else if (checkSymbolName(rtn, "clflush"))
 	{
 		RTN_Open(rtn);
 		RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)onClflush,
 				IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
 				IARG_END);
 		RTN_Close(rtn);
-		return;
 	}
 	//  Overload persistent memory sync.
-	if (checkSymbolName(rtn, "pcommit"))
+	else if (checkSymbolName(rtn, "pcommit"))
 	{
 		RTN_Open(rtn);
 		RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)onPCommit);
 		RTN_Close(rtn);
-		return;
 	}
-
 	InstrumentRoutine(rtn, NULL);
 }
 
@@ -859,12 +1118,41 @@ VOID Fini(INT32 code, VOID *v)
 
 	printStatistics();
 
+	//  Close the output file.
+	//  TODO
+	//if (TraceFile.is_open()) { TraceFile.close(); }
+
+	//  Sort by filename.
+	if (KnobByFile.Value())
+		ProcedureList.sort(compare_procedures_byfile);
+
 	unsigned long total = PrintRoutineSummary();
 	if (total > 0)
 		PrintRoutines();
 
 	free(numWrapsOpen);
 	free(inWrapFlags);
+}
+
+
+//  When an image or shared library is loaded lazily.
+VOID ImageLoad(IMG img, VOID *v)
+{
+	OutputFile << "ImageLoad " << IMG_Name(img) << ", Image id = " << IMG_Id(img) << endl;
+	for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec))
+	{
+		for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn))
+		{
+			Routine(rtn, 0);
+		}
+	}
+}
+
+
+//  Called on image unload, and we can't instrument it since it won't be executed.
+VOID ImageUnload(IMG img, VOID *v)
+{
+	OutputFile << "ImageUnload " << IMG_Name(img) << endl;
 }
 
 
@@ -893,16 +1181,26 @@ int main(int argc, char *argv[])
 
 	if (PIN_Init(argc, argv)) return Usage();
 
+	//  OutputFile
+	//  TODO
+	//OutputFile.open(KnobOutputFile.Value().c_str());
+
 	// Initialize the pin locks
 	InitLock(&pmemlock);
+	InitLock(&tracelock);
 
-	RTN_AddInstrumentFunction(Routine, 0);
+	//RTN_AddInstrumentFunction(Routine, 0);
 	//IMG_AddInstrumentFunction(Image, 0);
 	//INS_AddInstrumentFunction(Instruction, 0);  Now this is done in the routine section.
 
 	// Register Analysis routines to be called when a thread begins/ends
 	PIN_AddThreadStartFunction(ThreadStart, 0);
 	PIN_AddThreadFiniFunction(ThreadFini, 0);
+
+	// Register ImageLoad to be called when an image is loaded
+	IMG_AddInstrumentFunction(ImageLoad, 0);
+	// Register ImageUnload to be called when an image is unloaded
+	IMG_AddUnloadFunction(ImageUnload, 0);
 
 	PIN_AddFiniFunction(Fini, 0);
 

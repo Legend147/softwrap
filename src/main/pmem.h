@@ -32,5 +32,6 @@
 int isInPMem(void *v);
 void allocatedPMem(void *start, int size);
 void freedPMem(void *v);
+void reallocedPMem(void *p, int nsize, void *old);
 
 #endif /* _PMEM_H */

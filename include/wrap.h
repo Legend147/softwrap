@@ -61,6 +61,10 @@ void *pmalloc(size_t size);
 //  Persistent free.
 //void pfree(void *p);
 void pfree(void *ptr);
+
+void *pcalloc(size_t nmemb, size_t size);
+void *prealloc(void *ptr, size_t size);
+
 //  Mark a created shm segment as persistent.
 void persistentSHMCreated(void *v, size_t size);
 

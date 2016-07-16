@@ -474,6 +474,20 @@ AT3::~AT3()
 	pthread_mutex_destroy(&_aliasTableMutex);
 	pthread_cond_destroy(&_notifyEmpty);
 	pthread_cond_destroy(&_notifyRetire);
+
+	/** Make sure tables have flushed.  */
+	if (m_stateA != Empty)
+	{
+		m_atA->restoreAllElements();
+		m_atA->clearHash();
+		m_stateA = Empty;
+	}
+	if (m_stateB != Empty)
+	{
+		m_atB->restoreAllElements();
+		m_atB->clearHash();
+		m_stateB = Empty;
+	}
 	delete m_atA;
 	delete m_atB;
 };
