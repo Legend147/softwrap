@@ -365,7 +365,7 @@ public:
 	void *PCalloc(size_t nmemb, size_t size)
 	{
 		size_t tsize = (nmemb * size);
-		void *p = PMalloc(tsize);
+		void *p = PMalloc(tsize, 0);
 		int *pi = (int*)p;
 		for (unsigned i = 0; i < (tsize / 4); i++)
 			__builtin_ia32_movnti(pi++, 0);
@@ -383,7 +383,7 @@ public:
 	{
 		if (_usemmap || (_memchunk>0))
 		{
-			void *p = PMalloc(size);
+			void *p = PMalloc(size, 0);
 			bcopy(p, ptr, size);
 			PFree(ptr);
 			return p;
