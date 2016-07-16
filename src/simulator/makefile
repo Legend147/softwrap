@@ -32,6 +32,8 @@ clean:
 	rm -f $(LIBS)
 	rm -f *.o
 
+BINS = wraptrace.so
+
 wraptrace.so: wraptrace.cpp debug.h simcache.h pin_cache_wrap.H simnvm.h $(NVMAIN_LIB) simdram.h $(DRAMSIM_LIB)
 	g++ $(PIN_C_OPTIONS) -o wraptrace.o -I$(NVMAIN) -I../main -I../../include -I$(DRAMSIM) wraptrace.cpp
 	g++ $(PIN_L_OPTIONS) -o wraptrace.so $(NVMAIN_LIB) $(DRAMSIM_LIB) ../../lib/libwrap.so -lpin -lxed -ldwarf -lelf -ldl -lrt
@@ -52,3 +54,5 @@ dramsimpin.so: dramsimpin.cpp $(DRAMSIM_LIB) simdram.h debug.h
 	g++ $(PIN_C_OPTIONS) -o dramsimpin.o -I$(DRAMSIM) -I../main -I../../include dramsimpin.cpp
 	g++ $(PIN_L_OPTIONS) -o dramsimpin.so dramsimpin.o $(DRAMSIM_LIB) -lpin -lxed -ldwarf -lelf -ldl
 	
+clean:
+	rm -f $(BINS)

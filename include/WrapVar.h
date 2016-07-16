@@ -179,10 +179,14 @@ T WrapVar<T>::get(WRAPTOKEN w) const
 	}
 	else if (sizeof(T) == 4)
 	{
-		return (T)wrapLoad32((void*)&_ptr, w);
+		//  This makes gcc happy.
+		void *v;
+		v = (void*)&(_ptr);
+		uint64_t u = wrapLoad32(v, w);
+		return (T)u;
 	}
 	assert(0);
-	T val = *(T *)wrapRead((void *)&_ptr, sizeof(T), w);
+	T val = *(T *)wrapRead((void *)(&_ptr), sizeof(T), w);
 	return val;
 }
 

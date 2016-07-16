@@ -25,9 +25,11 @@ export CFLAGS += -DTRACER -DNDEBUG
 endif
 
 all:
+	mkdir -p ../lib
 	$(MAKE) -C main
 	$(MAKE) -C tests
 	$(MAKE) -C tracer
+	$(MAKE) -C tools
 ifeq ($(sim),1)
 	$(MAKE) -C simulator
 endif
@@ -36,6 +38,7 @@ clean:
 	$(MAKE) -C main clean
 	$(MAKE) -C tests clean
 	$(MAKE) -C tracer clean
+	$(MAKE) -C tools clean
 	$(MAKE) -C simulator clean
 
 runtests: $(BINS)

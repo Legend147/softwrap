@@ -39,7 +39,7 @@
 #ifdef NA
 #define wrapOpen()	5
 #define wrapClose(x)	p_msync();
-#define	wrapStore32(x,y,z)	ntstore(x,&y,4); z=1;
+#define	wrapStore32(x,y,z)	ntstore(x,&y,z); 
 #endif
 
 void trace(int *data, int arraySize, int wrapSize, int nSeconds, long rate, int reuse)
@@ -59,7 +59,7 @@ void trace(int *data, int arraySize, int wrapSize, int nSeconds, long rate, int 
 	long totalWrapClose = 0;
 	int doPrint = (getenv("WrapTimeData")==NULL)?0:1;
 	long IgnoreFirst = 0;
-
+	
 	//  Reuse
 	int *reuseIndexes = (int*)malloc(wrapSize*sizeof(int));
 	for (int i=0; i < wrapSize; i++)
