@@ -66,6 +66,24 @@ ATL::~ATL()
 	free(lookaside);
 }
 
+void *ATL::read(void *ptr, int size)
+{
+	void *v = (void*)GetItem((uint64_t)ptr);
+	if (v == NULL)
+		v = ptr;
+	return v;
+};
+
+
+void *ATL::load(void *ptr)
+{
+	void *v = GetItemAddress((uint64_t)ptr);
+	if (v == NULL)
+		v = ptr;
+	return v;
+}
+
+
 void ATL::write(void *ptr, void *src, int size)
 {
 	assert(0);
@@ -127,11 +145,9 @@ void ATL::restoreToCacheHierarchy()
 			//  Some items to write.
 			for (int i = 0; i < lookasideIndex; i++)
 				copyEntryToCache(lookaside[i]);
-			//  TODO need not be a sfence but a general fence so no reorder.
 			sfence();
 			for (int i = 0; i < lookasideIndex; i++)
 				writebackEntry(lookaside[i]);
-			//  TODO fence to prevent reorder.
 			sfence();
 			for (int i = 0; i < lookasideIndex; i++)
 			{

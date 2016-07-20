@@ -44,7 +44,11 @@ public:
 		void onWrapClose(int wrapToken, WrapLogger *log);
 		void copyEntryToCache(int i);
 		void writebackEntry(int i);
+
+		void *read(void *ptr, int size);
 		void write(void *ptr, void *src, int size);
+
+		void *load(void *ptr);
 		void store(void *ptr, uint64_t value, int size);
 
 private:
