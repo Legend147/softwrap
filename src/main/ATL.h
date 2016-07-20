@@ -42,6 +42,11 @@ public:
 		~ATL();
 		void onWrapOpen(int wrapToken);
 		void onWrapClose(int wrapToken, WrapLogger *log);
+		void copyEntryToCache(int i);
+		void writebackEntry(int i);
+		void write(void *ptr, void *src, int size);
+		void store(void *ptr, uint64_t value, int size);
+
 private:
 		int m_options;
 		void restoreToCacheHierarchy();

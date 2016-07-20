@@ -73,6 +73,7 @@ void persistentSHMCreated(void *v, size_t size);
 
 void startStatistics();
 void printStatistics(FILE *stream);
+void getAllStatistics(char *c);
 
 /**
  * Persistent Allocate.

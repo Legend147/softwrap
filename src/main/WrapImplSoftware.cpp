@@ -158,8 +158,8 @@ uint64_t WrapImplSoftware::wrapImplLoad64(void *ptr, WRAPTOKEN w)
 }
 uint32_t WrapImplSoftware::wrapImplLoad32(void *ptr, WRAPTOKEN w)
 {
-	uint32_t *t = (uint32_t *)_table->load(ptr);
-	return *t;
+	uint64_t *t = (uint64_t *)_table->load(ptr);
+	return (uint32_t)*t;
 }
 
 WrapImplSoftware::WrapImplSoftware()

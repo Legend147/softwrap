@@ -151,14 +151,22 @@ void getStatistics(char *c)
 			getNumNtStores(), getNumPMSyncs(), getNumWriteComb(), tc);
 }
 
-void printStatistics(FILE *stream)
+void getAllStatistics(char *c)
 {
 	char a[1024];
 	getWrapImpl()->getStatistics(a);
 	char b[1024];
 	getStatistics(b);
-	fprintf(stream, "\nWRAPSTATS \t%s \t%s\n", a, b);
+	sprintf(c, "WRAPSTATS \t%s \t%s", a, b);
 }
+
+void printStatistics(FILE *stream)
+{
+	char c[2048];
+	getAllStatistics(c);
+	fprintf(stream, "\n%s\n", c);
+}
+
 
 WrapImplType getWrapImplType()
 {
@@ -238,7 +246,7 @@ void wrapStore32(void *ptr, uint32_t value, WRAPTOKEN w)
 void persistentNotifyPin(void *v, size_t size, int isLogArea)
 {
 	//  Pin should overload this routine if running.
-	
+
 }
 
 void persistentSHMCreated(void *v, size_t size, bool isLogArea)
@@ -265,7 +273,7 @@ class PM
 #define MemSize (1<<16)
 public:
 	PM()
-	{
+{
 		_usemmap = false;
 		_base = NULL;
 		_last = 0;
@@ -297,7 +305,7 @@ public:
 			_last = _memchunk+1;
 			_base = NULL;
 		}
-	}
+}
 	~PM()
 	{
 		if (_usemmap)

@@ -39,7 +39,7 @@ public:
 	~LFHT();
 	uint64_t GetItem(uint64_t key, int *size = NULL);
 	void *GetItemAddress(uint64_t key);
-	void SetItem(uint64_t key, uint64_t value, int size);
+	uint64_t SetItem(uint64_t key, uint64_t value, int size);
 	int GetMaxSize();
 	int GetNumItems();
 	void clear();

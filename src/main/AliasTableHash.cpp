@@ -91,8 +91,7 @@ void AliasTableHash::onWrapClose(int wrapToken, WrapLogger *log)
 void *AliasTableHash::read(void *ptr, int size)
 {
 	void *v = (void*)GetItem((uint64_t)ptr);
-	if (v == NULL)
-		return ptr;
+
 	return v;
 };
 
@@ -101,8 +100,8 @@ void AliasTableHash::write(void *ptr, void *src, int size)
 	//assert(0);
 
 	//m_in++;
-	printf("w");
-	fflush(stdout);
+	//printf("w");
+	//fflush(stdout);
 	SetItem((uint64_t)ptr, (uint64_t)src, size);
 };
 
@@ -111,8 +110,7 @@ void *AliasTableHash::load(void *ptr)
 	//assert(0);
 	//return (uint64_t)GetItem((uint64_t)ptr);
 	void *v = GetItemAddress((uint64_t)ptr);
-	if (v == NULL)
-		v = ptr;
+
 	return v;
 };
 
@@ -160,7 +158,9 @@ void AliasTableHash::restoreAllElements()
 				else
 					ntstore((void*)(m_entries[i].key), &(m_entries[i].value), m_entries[i].size);
 			}
-//			asm volatile("sfence" : : : "memory");  now use sfence();
+			//  Loads from other processors can be reordered with respect to these stores so sfence.
+			//  Maybe look at storing all to home, then zeroing out.
+			asm volatile("sfence" : : : "memory");  //now use sfence();
 			m_entries[i].key = 0;
 	//		m_numItems--;
 			//			printf("%d ", m_numItems);

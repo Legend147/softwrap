@@ -182,7 +182,7 @@ void *LFHT::GetItemAddress(uint64_t key)
 		return NULL;
 }
 
-void LFHT::SetItem(uint64_t key, uint64_t value, int size)
+uint64_t LFHT::SetItem(uint64_t key, uint64_t value, int size)
 {
 	/*
 	static int sets = 0;
@@ -235,7 +235,8 @@ void LFHT::SetItem(uint64_t key, uint64_t value, int size)
 		//  Store the size in this array entry.
 		store_64_relaxed(&m_entries[idx].size, size);
 
-		return;
+		return idx;
 	}
+	return 0;
 }
 
