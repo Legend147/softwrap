@@ -204,11 +204,11 @@ void wrapWrite(void *ptr, void *src, int size, WRAPTOKEN w)
 	getWrapImpl()->wrapImplWrite(ptr, src, size, w);
 }
 
-void *wrapRead(void *ptr, int size, WRAPTOKEN w)
+size_t wrapRead(void *ptr, const void *src, size_t size, WRAPTOKEN w)
 {
-	Debug("wrapRead ptr=%p size=%d\n", ptr, size);
+	Debug("wrapRead ptr=%p src=%p size=%d\n", ptr, src, size);
 	getWrapImpl()->wrapStatRead(size);
-	return getWrapImpl()->wrapImplRead(ptr, size, w);
+	return getWrapImpl()->wrapImplRead(ptr, src, size, w);
 }
 
 uint64_t wrapLoad64(void *ptr, WRAPTOKEN w)

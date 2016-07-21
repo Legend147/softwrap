@@ -124,7 +124,8 @@ int wrapClose(WRAPTOKEN w);
 void wrapWrite(void *ptr, void *src, int size, WRAPTOKEN w);
 //void wrapWriteInt(int *ptr, int i, WRAPTOKEN w);
 //#define wrapWriteInt(ptr, val, w)	wrapWrite(ptr, &val, sizeof(int), w)
-void *wrapRead(void *ptr, int size, WRAPTOKEN w);
+//void *wrapRead(void *ptr, int size, WRAPTOKEN w);
+size_t wrapRead(void *ptr, const void *src, size_t size, WRAPTOKEN w);
 //int wrapReadInt(int *ptr, WRAPTOKEN w);
 //#define wrapReadInt(ptr, w)	*(int *)wrapRead(ptr, sizeof(int), w)
 

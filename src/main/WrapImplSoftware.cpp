@@ -127,10 +127,17 @@ void WrapImplSoftware::wrapImplWrite(void *ptr, void *src, int size, WRAPTOKEN w
 	}
 }
 
-void *WrapImplSoftware::wrapImplRead(void *ptr, int size, WRAPTOKEN w)
+size_t WrapImplSoftware::wrapImplRead(void *ptr, const void *src, size_t size, WRAPTOKEN w)
 {
-	return _table->read(ptr, size);
+	void *v = _table->read(ptr, size);
+
+	if (v == NULL)
+		return 0;
+
+	memcpy(ptr, v, size);
+	return size;
 }
+
 
 
 void WrapImplSoftware::wrapImplStore64(void *ptr, uint64_t value, WRAPTOKEN w)

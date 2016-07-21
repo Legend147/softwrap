@@ -73,11 +73,12 @@ int hardwareWrapClose(int wrapToken)
 	return 0;
 }
 
-void *hardwareWrapRead(void *ptr, int size, int w)
+
+size_t hardwareWrapRead(void *ptr, const void *src, size_t size, int w)
 {
 	//  Pin shall override this function.
 	assert(0);
-	return NULL;
+	return 0;
 }
 
 void hardwareWrapWrite(void *ptr, void *src, int size, int w)
@@ -161,21 +162,13 @@ void WrapImpl::wrapImplWrite(void *ptr, void *src, int size, WRAPTOKEN w)
 }
 
 
-//  TODO!!  Add to TLS list.  On wrap closed free the tls list!!!
-char itemp[1024];
-void *WrapImpl::wrapImplRead(void *ptr, int size, WRAPTOKEN w)
+size_t WrapImpl::wrapImplRead(void *ptr, const void *src, size_t size, WRAPTOKEN w)
 {
 	if (m_wrapImplType == Wrap_Hardware)
-		return hardwareWrapRead(ptr, size, w);
+		return hardwareWrapRead(ptr, src, size, w);
 
-	//printf("ptr=%p i=%p\n", ptr, &i);
-	if (m_wrapImplType == MemCheck)
-	{
-		void *p = &itemp;
-		memcpy(p, ptr, size);
-		return p;
-	}
-	return ptr;
+	memcpy(ptr, src, size);
+	return size;
 }
 
 

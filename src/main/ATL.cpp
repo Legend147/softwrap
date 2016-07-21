@@ -145,6 +145,7 @@ void ATL::restoreToCacheHierarchy()
 			//  Some items to write.
 			for (int i = 0; i < lookasideIndex; i++)
 				copyEntryToCache(lookaside[i]);
+			//  TODO won't need these fences when adding TLS since we have TSO.
 			sfence();
 			for (int i = 0; i < lookasideIndex; i++)
 				writebackEntry(lookaside[i]);

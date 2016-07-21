@@ -42,8 +42,7 @@ public:
 	virtual int wrapImplClose(int wrapToken);
 
 	virtual void wrapImplWrite(void *ptr, void *src, int size, WRAPTOKEN w);
-	virtual void *wrapImplRead(void *ptr, int size, WRAPTOKEN w);
-
+	virtual size_t wrapImplRead(void *ptr, const void *src, size_t size, WRAPTOKEN w);
 	virtual void wrapImplStore64(void *ptr, uint64_t value, WRAPTOKEN w);
 	virtual void wrapImplStore32(void *ptr, uint32_t value, WRAPTOKEN w);
 	virtual uint64_t wrapImplLoad64(void *ptr, WRAPTOKEN w);

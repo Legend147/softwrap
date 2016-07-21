@@ -43,7 +43,7 @@ public:
 	int wrapImplClose(int wrapToken);
 
 	void wrapImplWrite(void *ptr, void *src, int size, WRAPTOKEN w);
-	void *wrapImplRead(void *ptr, int size, WRAPTOKEN w);
+	size_t wrapImplRead(void *ptr, const void *src, size_t size, WRAPTOKEN w);
 
 	void wrapImplStore64(void *ptr, uint64_t value, WRAPTOKEN w);
 	void wrapImplStore32(void *ptr, uint32_t value, WRAPTOKEN w);

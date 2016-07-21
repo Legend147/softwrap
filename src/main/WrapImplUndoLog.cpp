@@ -96,10 +96,13 @@ void WrapImplUndoLog::wrapImplWrite(void *ptr, void *src, int size, WRAPTOKEN w)
 	}
 }
 
-void *WrapImplUndoLog::wrapImplRead(void *ptr, int size, WRAPTOKEN w)
+
+size_t WrapImplUndoLog::wrapImplRead(void *ptr, const void *src, size_t size, WRAPTOKEN w)
 {
-	return ptr;
+	memcpy(ptr, src, size);
+	return size;
 }
+
 
 ////
 void WrapImplUndoLog::wrapImplStore64(void *ptr, uint64_t value, WRAPTOKEN w)

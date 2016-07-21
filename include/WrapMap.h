@@ -42,15 +42,21 @@ class HashNode {
 public:
     inline K key(WRAPTOKEN w = 0)
     {
-    	return *(K*)wrapRead(&_key, sizeof(K), w);
+    	K temp;
+    	wrapRead(&temp, &_key, sizeof(K), w);
+    	return temp;
     }
     inline V value(WRAPTOKEN w = 0)
     {
-        return *(V*)wrapRead(&_value, sizeof(V), w);
+    	V temp;
+    	wrapRead(&temp, &_value, sizeof(V), w);
+    	return temp;
     }
     HashNode* next(WRAPTOKEN w = 0)
     {
-        return *(HashNode**)wrapRead(&_next, sizeof(HashNode*), w);
+        HashNode *t;
+        wrapRead(&(t), &_next, sizeof(HashNode*), w);
+        return t;
     }
     inline void setValue(V value, WRAPTOKEN w)
     {
@@ -99,7 +105,9 @@ public:
 		int size = _size.get();
 		for (int i = 0; i < size; ++i)
 		{
-			HashEntry* entry = *(HashEntry**)wrapRead(_table.get()+i, sizeof(HashEntry*), 0);
+			HashEntry* entry;
+			wrapRead(&entry, _table.get()+i, sizeof(HashEntry*), 0);
+
 			while (entry != 0)
 			{
 				HashEntry* prev = entry;
@@ -118,7 +126,8 @@ public:
 	inline V Get(K key, WRAPTOKEN w = 0)
 	{
 		int hash_val = HashFunc(key);
-		HashEntry* entry = *(HashEntry**)wrapRead(_table.get(w)+hash_val, sizeof(HashEntry*), w);
+		HashEntry* entry;
+		wrapRead(&entry, _table.get(w)+hash_val, sizeof(HashEntry*), w);
 
 		while (entry != 0)
 		{
@@ -141,7 +150,8 @@ public:
 		if (wt == 0)
 			w = wrapOpen();
 
-		HashEntry* entry = *(HashEntry**)wrapRead(_table.get(w)+hash_val, sizeof(HashEntry*), w);
+		HashEntry* entry;
+		wrapRead(&entry, _table.get(w)+hash_val, sizeof(HashEntry*), w);
 
 		//printf("entry=%p hashval=%d _table=%p\n", entry, hash_val, _table.get(w));
 
@@ -185,7 +195,8 @@ public:
 		WRAPTOKEN w = wt;
 		if (wt == 0)
 			w = wrapOpen();
-		HashEntry* entry = *(HashEntry**)wrapRead(_table.get(w)+hash_val, sizeof(HashEntry*), w);
+		HashEntry* entry;
+		wrapRead(&entry, _table.get(w)+hash_val, sizeof(HashEntry*), w);
 
 		HashEntry* prev = 0;
 		while (entry != 0)
