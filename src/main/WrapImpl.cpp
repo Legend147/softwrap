@@ -204,6 +204,23 @@ void WrapImpl::wrapImplStore32(void *ptr, uint32_t value, WRAPTOKEN w)
 		*(uint32_t*)ptr = value;
 }
 
+void WrapImpl::wrapImplStore16(void *ptr, uint16_t value, WRAPTOKEN w)
+{
+	if (m_wrapImplType == Wrap_Hardware)
+		return hardwareWrapStore(ptr, value, 2, w);
+
+	//printf("wrapWrite memcpy %p %p %d\n", ptr, src, size);
+
+	if (m_wrapImplType == NoAtomicity)
+	{
+		ntstore(ptr, &value, 2);
+		//p_msync();
+	}
+	else
+		*(uint16_t*)ptr = value;
+}
+
+
 uint64_t WrapImpl::wrapImplLoad64(void *ptr, WRAPTOKEN w)
 {
 	if (m_wrapImplType == Wrap_Hardware)
@@ -217,6 +234,20 @@ uint32_t WrapImpl::wrapImplLoad32(void *ptr, WRAPTOKEN w)
 		return hardwareWrapLoad(ptr, 4, w);
 
 	return *(uint32_t*)ptr;
+}
+uint16_t WrapImpl::wrapImplLoad16(void *ptr, WRAPTOKEN w)
+{
+	if (m_wrapImplType == Wrap_Hardware)
+		return hardwareWrapLoad(ptr, 2, w);
+
+	return *(uint16_t*)ptr;
+}
+uint8_t WrapImpl::wrapImplLoadByte(void *ptr, WRAPTOKEN w)
+{
+	if (m_wrapImplType == Wrap_Hardware)
+		return hardwareWrapLoad(ptr, 1, w);
+
+	return *(uint8_t*)ptr;
 }
 
 

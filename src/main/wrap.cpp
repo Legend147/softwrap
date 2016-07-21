@@ -227,6 +227,23 @@ uint32_t wrapLoad32(void *ptr, WRAPTOKEN w)
 	return getWrapImpl()->wrapImplLoad32(ptr, w);
 }
 
+uint16_t wrapLoad16(void *ptr, WRAPTOKEN w)
+{
+	//getWrapImpl()->wrapStatLoad();
+	getWrapImpl()->wrapStatRead(2);
+
+	return getWrapImpl()->wrapImplLoad16(ptr, w);
+}
+
+uint8_t wrapLoadByte(void *ptr, WRAPTOKEN w)
+{
+	//getWrapImpl()->wrapStatLoad();
+	getWrapImpl()->wrapStatRead(1);
+
+	return getWrapImpl()->wrapImplLoadByte(ptr, w);
+}
+
+
 void wrapStore64(void *ptr, uint64_t value, WRAPTOKEN w)
 {
 	//getWrapImpl()->wrapStatStore();
@@ -241,6 +258,14 @@ void wrapStore32(void *ptr, uint32_t value, WRAPTOKEN w)
 	getWrapImpl()->wrapStatWrite(4);
 
 	getWrapImpl()->wrapImplStore32(ptr, value, w);
+}
+
+void wrapStore16(void *ptr, uint16_t value, WRAPTOKEN w)
+{
+	//getWrapImpl()->wrapStatStore();
+	getWrapImpl()->wrapStatWrite(2);
+
+	getWrapImpl()->wrapImplStore16(ptr, value, w);
 }
 
 void persistentNotifyPin(void *v, size_t size, int isLogArea)

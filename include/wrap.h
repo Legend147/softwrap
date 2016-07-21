@@ -131,8 +131,11 @@ size_t wrapRead(void *ptr, const void *src, size_t size, WRAPTOKEN w);
 
 uint64_t wrapLoad64(void *ptr, WRAPTOKEN w);
 uint32_t wrapLoad32(void *ptr, WRAPTOKEN w);
+uint16_t wrapLoad16(void *ptr, WRAPTOKEN w);
+uint8_t wrapLoadByte(void *ptr, WRAPTOKEN w);
 void wrapStore64(void *ptr, uint64_t value, WRAPTOKEN w);
 void wrapStore32(void *ptr, uint32_t value, WRAPTOKEN w);
+void wrapStore16(void *ptr, uint16_t value, WRAPTOKEN w);
 
 #define wrapReadInt(ptr, w)	(int)wrapLoad32(ptr, w)
 #define wrapWriteInt(ptr, val, w)	wrapStore32(ptr, (uint32_t)val, w)

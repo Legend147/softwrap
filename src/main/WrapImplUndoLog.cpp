@@ -123,6 +123,15 @@ void WrapImplUndoLog::wrapImplStore32(void *ptr, uint32_t value, WRAPTOKEN w)
 	//p_msync();
 }
 
+void WrapImplUndoLog::wrapImplStore16(void *ptr, uint16_t value, WRAPTOKEN w)
+{
+	_log->addWrapLogEntry(ptr, ptr, 2, w);
+	p_msync();
+	ntstore(ptr, &value, 2);
+	//  Only one pcommit per write.
+	//p_msync();
+}
+
 uint64_t WrapImplUndoLog::wrapImplLoad64(void *ptr, WRAPTOKEN w)
 {
 	return *(uint64_t*)ptr;
@@ -130,6 +139,14 @@ uint64_t WrapImplUndoLog::wrapImplLoad64(void *ptr, WRAPTOKEN w)
 uint32_t WrapImplUndoLog::wrapImplLoad32(void *ptr, WRAPTOKEN w)
 {
 	return *(uint32_t*)ptr;
+}
+uint16_t WrapImplUndoLog::wrapImplLoad16(void *ptr, WRAPTOKEN w)
+{
+	return *(uint16_t*)ptr;
+}
+uint8_t WrapImplUndoLog::wrapImplLoadByte(void *ptr, WRAPTOKEN w)
+{
+	return *(uint8_t*)ptr;
 }
 
 WrapImplUndoLog::WrapImplUndoLog()

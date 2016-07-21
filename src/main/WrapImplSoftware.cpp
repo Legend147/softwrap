@@ -158,6 +158,15 @@ void WrapImplSoftware::wrapImplStore32(void *ptr, uint32_t value, WRAPTOKEN w)
 	_table->store(ptr, value, 4);
 }
 
+void WrapImplSoftware::wrapImplStore16(void *ptr, uint16_t value, WRAPTOKEN w)
+{
+	//  Stream to the log.
+	_log->addWrapLogEntry(ptr, &value, 2, w);
+
+	//  Add to the alias table.
+	_table->store(ptr, value, 2);
+}
+
 uint64_t WrapImplSoftware::wrapImplLoad64(void *ptr, WRAPTOKEN w)
 {
 	uint64_t *t = (uint64_t *)_table->load(ptr);
@@ -167,6 +176,17 @@ uint32_t WrapImplSoftware::wrapImplLoad32(void *ptr, WRAPTOKEN w)
 {
 	uint64_t *t = (uint64_t *)_table->load(ptr);
 	return (uint32_t)*t;
+}
+uint16_t WrapImplSoftware::wrapImplLoad16(void *ptr, WRAPTOKEN w)
+{
+	uint64_t *t = (uint64_t *)_table->load(ptr);
+	return (uint16_t)*t;
+}
+uint8_t WrapImplSoftware::wrapImplLoadByte(void *ptr, WRAPTOKEN w)
+{
+	uint8_t c;
+	//  TODO, can use pimitives.
+	return wrapImplRead(&c, ptr, 1, w);
 }
 
 WrapImplSoftware::WrapImplSoftware()
