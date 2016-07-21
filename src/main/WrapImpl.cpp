@@ -57,6 +57,8 @@ int WrapImpl::maxBytesRead = 0;
 int WrapImpl::maxBytesWrite = 0;
 long WrapImpl::totalWrapTime;
 //int WrapImpl::m_maxLogSize = 1024*8*4;
+int WrapImpl::totWrapStreams = 0;
+long WrapImpl::totBytesStreamed = 0;
 
 
 int hardwareWrapOpen()
@@ -366,6 +368,7 @@ void WrapImpl::startStatistics()
 {
 	totWrapOpen = totWrapClose = maxWrapDepth = totUniqueWraps = 0;
 	totWrapRead = totWrapWrite = totBytesRead = totBytesWrite = maxBytesRead = maxBytesWrite = 0;
+	totWrapStreams = totBytesStreamed = 0;
 }
 
 void WrapImpl::getStatistics(char *c)
@@ -373,6 +376,7 @@ void WrapImpl::getStatistics(char *c)
 	sprintf(c, "Type= %d \tOptions= %d \ttotWrapOpen= %d \ttotWrapClose= %d \t" \
 			"maxWrapDepth= %d \ttotUniqueWraps= %d \ttotWrapRead= %d \ttotWrapWrite= %d \t" \
 			"totBytesRead= %ld \ttotBytesWrite= %ld \tmaxBytesRead= %d \tmaxBytesWrite= %d",
-			m_wrapImplType, m_options, totWrapOpen, totWrapClose, maxWrapDepth, totUniqueWraps,
+			m_wrapImplType, m_options, totWrapOpen, totWrapClose, maxWrapDepth,
+			totUniqueWraps - totWrapStreams,
 			totWrapRead, totWrapWrite, totBytesRead, totBytesWrite, maxBytesRead, maxBytesWrite);
 }

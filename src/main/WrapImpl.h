@@ -95,6 +95,18 @@ public:
 		totWrapClose++;
 	}
 
+	//  Stat routines.
+	static inline void wrapStatStream()
+	{
+		totWrapStreams++;
+	}
+
+	static inline void wrapStatStreamWrite(int nbytes)
+	{
+		totBytesStreamed+=nbytes;
+	}
+
+
 	static inline void wrapStatRead(int nbytes)
 	{
 		totWrapRead++;
@@ -132,6 +144,10 @@ public:
 
 	virtual ~WrapImpl();
 	long elapsedTime();
+
+	//  stats
+	static int totWrapStreams;
+	static long totBytesStreamed;
 
 protected:
 	static WrapImplType m_wrapImplType;

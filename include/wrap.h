@@ -121,6 +121,12 @@ WRAPTOKEN wrapOpen();
 //WRAPTOKEN wrapOpen(const char *token, int type);
 int wrapClose(WRAPTOKEN w);
 
+/**
+ * New WrAP Streams
+ */
+WRAPTOKEN wrapStreamOpen();
+int wrapStreamClose(WRAPTOKEN w);
+
 void wrapWrite(void *ptr, void *src, int size, WRAPTOKEN w);
 //void wrapWriteInt(int *ptr, int i, WRAPTOKEN w);
 //#define wrapWriteInt(ptr, val, w)	wrapWrite(ptr, &val, sizeof(int), w)

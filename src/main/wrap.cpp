@@ -147,8 +147,10 @@ void getStatistics(char *c)
 {
 	char tc[1024];
 	getPinStatistics(tc);
-	sprintf(c, "ntstore= %d \tp_msync= %d \twritecomb= %d \t%s",
-			getNumNtStores(), getNumPMSyncs(), getNumWriteComb(), tc);
+	sprintf(c, "ntstore= %d \tp_msync= %d \twritecomb= %d \t%s \t" \
+			"totalWrapStreams= %d \ttotalBytesStreamed= %ld",
+			getNumNtStores(), getNumPMSyncs(), getNumWriteComb(), tc,
+			getWrapImpl()->totWrapStreams, getWrapImpl()->totBytesStreamed);
 }
 
 void getAllStatistics(char *c)
@@ -179,22 +181,67 @@ const char *getAliasDetails()
 }
 
 
+WRAP_TLS int nWrapsOpen = 0;
+WRAP_TLS int isWrapStreamOpen = 0;
+
 WRAPTOKEN wrapOpen()
 {
+	nWrapsOpen++;
 	//  Pin should inject an instrument before return value.
 	getWrapImpl()->wrapStatOpen();
+	if (isWrapStreamOpen)
+	{
+		assert(nWrapsOpen > 0);
+		return 1;
+	}
 	return getWrapImpl()->wrapImplOpen();
 }
 
 int wrapClose(WRAPTOKEN w)
 {
+	nWrapsOpen--;
 	//  Pin should inject an instrument before entry value.
 	getWrapImpl()->wrapStatClose();
+	if (isWrapStreamOpen)
+	{
+		assert(nWrapsOpen > 0);
+		return 1;
+	}
 	return getWrapImpl()->wrapImplClose(w);
 }
 
+
+WRAPTOKEN wrapStreamOpen()
+{
+	if (nWrapsOpen == 0)
+	{
+		isWrapStreamOpen = 1;
+		getWrapImpl()->wrapStatStream();
+	}
+	nWrapsOpen++;
+	getWrapImpl()->wrapStatOpen();
+	return 1;
+}
+
+int wrapStreamClose(WRAPTOKEN w)
+{
+	nWrapsOpen--;
+	if (nWrapsOpen == 0)
+		isWrapStreamOpen = 0;
+	getWrapImpl()->wrapStatClose();
+	return 1;
+}
+
+
 void wrapWrite(void *ptr, void *src, int size, WRAPTOKEN w)
 {
+	if (isWrapStreamOpen)
+	{
+		Debug("wrapWriteStream %p %p %d\n", ptr, src, size);
+		ntstore(ptr, src, size);
+		getWrapImpl()->wrapStatStreamWrite(size);
+		return;
+	}
 	if (isDebug())
 	{
 		Debug("wrapWrite %p %p %d\n", ptr, src, size);
@@ -246,6 +293,12 @@ uint8_t wrapLoadByte(void *ptr, WRAPTOKEN w)
 
 void wrapStore64(void *ptr, uint64_t value, WRAPTOKEN w)
 {
+	if (isWrapStreamOpen)
+	{
+		ntstore(ptr, &value, sizeof(value));
+		getWrapImpl()->wrapStatStreamWrite(sizeof(value));
+		return;
+	}
 	//getWrapImpl()->wrapStatStore();
 	getWrapImpl()->wrapStatWrite(8);
 
@@ -254,6 +307,12 @@ void wrapStore64(void *ptr, uint64_t value, WRAPTOKEN w)
 
 void wrapStore32(void *ptr, uint32_t value, WRAPTOKEN w)
 {
+	if (isWrapStreamOpen)
+	{
+		ntstore(ptr, &value, sizeof(value));
+		getWrapImpl()->wrapStatStreamWrite(sizeof(value));
+		return;
+	}
 	//getWrapImpl()->wrapStatStore();
 	getWrapImpl()->wrapStatWrite(4);
 
@@ -262,6 +321,12 @@ void wrapStore32(void *ptr, uint32_t value, WRAPTOKEN w)
 
 void wrapStore16(void *ptr, uint16_t value, WRAPTOKEN w)
 {
+	if (isWrapStreamOpen)
+	{
+		ntstore(ptr, &value, sizeof(value));
+		getWrapImpl()->wrapStatStreamWrite(sizeof(value));
+		return;
+	}
 	//getWrapImpl()->wrapStatStore();
 	getWrapImpl()->wrapStatWrite(2);
 
