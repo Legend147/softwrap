@@ -57,6 +57,8 @@ int WrapImpl::maxBytesRead = 0;
 int WrapImpl::maxBytesWrite = 0;
 long WrapImpl::totalWrapTime;
 //int WrapImpl::m_maxLogSize = 1024*8*4;
+int WrapImpl::totWrapStreams = 0;
+long WrapImpl::totBytesStreamed = 0;
 
 
 int hardwareWrapOpen()
@@ -73,11 +75,12 @@ int hardwareWrapClose(int wrapToken)
 	return 0;
 }
 
-void *hardwareWrapRead(void *ptr, int size, int w)
+
+size_t hardwareWrapRead(void *ptr, const void *src, size_t size, int w)
 {
 	//  Pin shall override this function.
 	assert(0);
-	return NULL;
+	return 0;
 }
 
 void hardwareWrapWrite(void *ptr, void *src, int size, int w)
@@ -161,21 +164,13 @@ void WrapImpl::wrapImplWrite(void *ptr, void *src, int size, WRAPTOKEN w)
 }
 
 
-//  TODO!!  Add to TLS list.  On wrap closed free the tls list!!!
-char itemp[1024];
-void *WrapImpl::wrapImplRead(void *ptr, int size, WRAPTOKEN w)
+size_t WrapImpl::wrapImplRead(void *ptr, const void *src, size_t size, WRAPTOKEN w)
 {
 	if (m_wrapImplType == Wrap_Hardware)
-		return hardwareWrapRead(ptr, size, w);
+		return hardwareWrapRead(ptr, src, size, w);
 
-	//printf("ptr=%p i=%p\n", ptr, &i);
-	if (m_wrapImplType == MemCheck)
-	{
-		void *p = &itemp;
-		memcpy(p, ptr, size);
-		return p;
-	}
-	return ptr;
+	memcpy(ptr, src, size);
+	return size;
 }
 
 
@@ -183,8 +178,6 @@ void WrapImpl::wrapImplStore64(void *ptr, uint64_t value, WRAPTOKEN w)
 {
 	if (m_wrapImplType == Wrap_Hardware)
 		return hardwareWrapStore(ptr, value, 8, w);
-
-	//printf("wrapWrite memcpy %p %p %d\n", ptr, src, size);
 
 	if (m_wrapImplType == NoAtomicity)
 	{
@@ -200,9 +193,7 @@ void WrapImpl::wrapImplStore32(void *ptr, uint32_t value, WRAPTOKEN w)
 	if (m_wrapImplType == Wrap_Hardware)
 		return hardwareWrapStore(ptr, value, 4, w);
 
-	//printf("wrapWrite memcpy %p %p %d\n", ptr, src, size);
-
-	if (m_wrapImplType == NoAtomicity)
+		if (m_wrapImplType == NoAtomicity)
 	{
 		ntstore(ptr, &value, 4);
 		//p_msync();
@@ -210,6 +201,35 @@ void WrapImpl::wrapImplStore32(void *ptr, uint32_t value, WRAPTOKEN w)
 	else
 		*(uint32_t*)ptr = value;
 }
+
+void WrapImpl::wrapImplStore16(void *ptr, uint16_t value, WRAPTOKEN w)
+{
+	if (m_wrapImplType == Wrap_Hardware)
+		return hardwareWrapStore(ptr, value, 2, w);
+
+	if (m_wrapImplType == NoAtomicity)
+	{
+		ntstore(ptr, &value, 2);
+		//p_msync();
+	}
+	else
+		*(uint16_t*)ptr = value;
+}
+
+void WrapImpl::wrapImplStoreByte(void *ptr, uint8_t value, WRAPTOKEN w)
+{
+	if (m_wrapImplType == Wrap_Hardware)
+		return hardwareWrapStore(ptr, value, 1, w);
+
+	if (m_wrapImplType == NoAtomicity)
+	{
+		ntstore(ptr, &value, 1);
+	}
+	else
+		*(uint8_t*)ptr = value;
+}
+
+
 
 uint64_t WrapImpl::wrapImplLoad64(void *ptr, WRAPTOKEN w)
 {
@@ -224,6 +244,20 @@ uint32_t WrapImpl::wrapImplLoad32(void *ptr, WRAPTOKEN w)
 		return hardwareWrapLoad(ptr, 4, w);
 
 	return *(uint32_t*)ptr;
+}
+uint16_t WrapImpl::wrapImplLoad16(void *ptr, WRAPTOKEN w)
+{
+	if (m_wrapImplType == Wrap_Hardware)
+		return hardwareWrapLoad(ptr, 2, w);
+
+	return *(uint16_t*)ptr;
+}
+uint8_t WrapImpl::wrapImplLoadByte(void *ptr, WRAPTOKEN w)
+{
+	if (m_wrapImplType == Wrap_Hardware)
+		return hardwareWrapLoad(ptr, 1, w);
+
+	return *(uint8_t*)ptr;
 }
 
 
@@ -342,6 +376,7 @@ void WrapImpl::startStatistics()
 {
 	totWrapOpen = totWrapClose = maxWrapDepth = totUniqueWraps = 0;
 	totWrapRead = totWrapWrite = totBytesRead = totBytesWrite = maxBytesRead = maxBytesWrite = 0;
+	totWrapStreams = totBytesStreamed = 0;
 }
 
 void WrapImpl::getStatistics(char *c)
@@ -349,6 +384,7 @@ void WrapImpl::getStatistics(char *c)
 	sprintf(c, "Type= %d \tOptions= %d \ttotWrapOpen= %d \ttotWrapClose= %d \t" \
 			"maxWrapDepth= %d \ttotUniqueWraps= %d \ttotWrapRead= %d \ttotWrapWrite= %d \t" \
 			"totBytesRead= %ld \ttotBytesWrite= %ld \tmaxBytesRead= %d \tmaxBytesWrite= %d",
-			m_wrapImplType, m_options, totWrapOpen, totWrapClose, maxWrapDepth, totUniqueWraps,
+			m_wrapImplType, m_options, totWrapOpen, totWrapClose, maxWrapDepth,
+			totUniqueWraps - totWrapStreams,
 			totWrapRead, totWrapWrite, totBytesRead, totBytesWrite, maxBytesRead, maxBytesWrite);
 }

@@ -42,12 +42,15 @@ public:
 	virtual int wrapImplClose(int wrapToken);
 
 	virtual void wrapImplWrite(void *ptr, void *src, int size, WRAPTOKEN w);
-	virtual void *wrapImplRead(void *ptr, int size, WRAPTOKEN w);
-
+	virtual size_t wrapImplRead(void *ptr, const void *src, size_t size, WRAPTOKEN w);
 	virtual void wrapImplStore64(void *ptr, uint64_t value, WRAPTOKEN w);
 	virtual void wrapImplStore32(void *ptr, uint32_t value, WRAPTOKEN w);
+	virtual void wrapImplStore16(void *ptr, uint16_t value, WRAPTOKEN w);
+	virtual void wrapImplStoreByte(void *ptr, uint8_t value, WRAPTOKEN w);
 	virtual uint64_t wrapImplLoad64(void *ptr, WRAPTOKEN w);
 	virtual uint32_t wrapImplLoad32(void *ptr, WRAPTOKEN w);
+	virtual uint16_t wrapImplLoad16(void *ptr, WRAPTOKEN w);
+	virtual uint8_t wrapImplLoadByte(void *ptr, WRAPTOKEN w);
 
 	//virtual void wrapStore(void *ptr, uint64_t value, int size, WRAPTOKEN w);
 	//virtual uint64_t wrapLoad(void *ptr, WRAPTOKEN w);
@@ -93,6 +96,18 @@ public:
 		totWrapClose++;
 	}
 
+	//  Stat routines.
+	static inline void wrapStatStream()
+	{
+		totWrapStreams++;
+	}
+
+	static inline void wrapStatStreamWrite(int nbytes)
+	{
+		totBytesStreamed+=nbytes;
+	}
+
+
 	static inline void wrapStatRead(int nbytes)
 	{
 		totWrapRead++;
@@ -130,6 +145,10 @@ public:
 
 	virtual ~WrapImpl();
 	long elapsedTime();
+
+	//  stats
+	static int totWrapStreams;
+	static long totBytesStreamed;
 
 protected:
 	static WrapImplType m_wrapImplType;

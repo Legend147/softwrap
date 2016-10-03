@@ -143,7 +143,8 @@ void WrapLogger::addWrapLogEntry(void *ptr, void *src, int size, WRAPTOKEN w)
 	assert(_flagEntry < 2);  // flag should be 0 or 1 since it's open.
 	if (!(_currentLocation + 12 + size < _log + _sizeOfLog))
 	{
-		printf("currentLocation=%p + 12 + size=%d < _log=%p + _sizeOfLog=%d\n", _currentLocation, size, _log, _sizeOfLog);
+		printf("currentLocation=%p + 12 + size=%d < _log=%p + _sizeOfLog=%d\n",
+				_currentLocation, size, _log, _sizeOfLog);
 		assert(0);
 	}
 
@@ -152,7 +153,7 @@ void WrapLogger::addWrapLogEntry(void *ptr, void *src, int size, WRAPTOKEN w)
 	{
 		uint64_t u = (uint64_t)ptr;
 		//  Make sure the last bits of the pointer are zero, eg it's 4 byte aligned.
-		assert((u & 3) == 0);
+		//assert((u & 3) == 0);
 		u += (_flagEntry & 1);
 		ntstore(_currentLocation, (void *)u, 8);
 		_currentLocation += 8;

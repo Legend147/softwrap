@@ -43,12 +43,16 @@ public:
 	int wrapImplClose(int wrapToken);
 
 	void wrapImplWrite(void *ptr, void *src, int size, WRAPTOKEN w);
-	void *wrapImplRead(void *ptr, int size, WRAPTOKEN w);
+	size_t wrapImplRead(void *ptr, const void *src, size_t size, WRAPTOKEN w);
 
 	void wrapImplStore64(void *ptr, uint64_t value, WRAPTOKEN w);
 	void wrapImplStore32(void *ptr, uint32_t value, WRAPTOKEN w);
+	void wrapImplStore16(void *ptr, uint16_t value, WRAPTOKEN w);
+	void wrapImplStoreByte(void *ptr, uint8_t value, WRAPTOKEN w);
 	uint64_t wrapImplLoad64(void *ptr, WRAPTOKEN w);
 	uint32_t wrapImplLoad32(void *ptr, WRAPTOKEN w);
+	uint16_t wrapImplLoad16(void *ptr, WRAPTOKEN w);
+	uint8_t wrapImplLoadByte(void *ptr, WRAPTOKEN w);
 
 	void getOptionString(char *c);
 

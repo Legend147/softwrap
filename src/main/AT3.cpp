@@ -35,7 +35,7 @@
 #include "memtool.h"
 #include "unistd.h"
 
-#define atprintf(x) //printf(x); fflush(stdout)
+#define atprintf(x) printf(x); fflush(stdout)
 #define Debug(...)
 
 //bool __sync_bool_compare_and_swap (type *ptr, type oldval type newval, ...)

@@ -26,41 +26,56 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __LFHT_H
-#define __LFHT_H
+#ifndef __LAT_h
+#define __LAT_h
 
-#include <stdlib.h>
 #include <stdint.h>
-
+#include "WrapLogger.h"
+#include "WrapLogManager.h"
+#include "AliasTableBase.h"
 #include "bloom.h"
 
-class LFHT
+using namespace std;
+
+#define MAX_LAT_ENTRIES	65536
+#define MAX_LAT_DATA	(MAX_LAT_ENTRIES * 8)
+
+class LAT : public AliasTableBase
 {
 public:
-	LFHT(int size, int mt = 1);
-	~LFHT();
-	uint64_t GetItem(uint64_t key, int *size = NULL);
-	void *GetItemAddress(uint64_t key);
-	uint64_t SetItem(uint64_t key, uint64_t value, int size);
-	int GetMaxSize();
-	int GetNumItems();
-	void clear();
+		LAT(WrapLogManager *manager, int size);
+		~LAT();
+		void onWrapOpen(int wrapToken);
+		void onWrapClose(int wrapToken, WrapLogger *log);
+		void copyEntryToCache(int i);
+		void writebackEntry(int i);
+		void restoreAllElements();
 
-protected:
-	struct Entry
-	{
-	    uint64_t key;
-	    uint64_t value;
-	    int size;
-	};
-	Entry *m_entries;
-	int m_arraySize;
-	volatile int m_numItems;
-	//  flag for multi-threaded
-	int m_mt;
+		size_t readInto(void *ptr, const void *src, size_t size);
+		void *read(void *ptr, int size) { assert(0); }
+		void write(void *ptr, void *src, int size);
 
-	BloomFilter m_bloom;
+		void *load(void *ptr);
+		void store(void *ptr, uint64_t value, int size);
 
+		const char *getDetails();
+
+private:
+		struct Entry
+			{
+			    void *key;
+			    uint64_t value;
+			    int size;
+			};
+		static __thread struct Entry m_entries[MAX_LAT_ENTRIES];
+
+		static __thread int m_lastIndex;
+		static __thread char m_data[MAX_LAT_DATA];
+		static __thread int m_lastData;
+		void restoreToCacheHierarchy();
+
+		BloomFilter m_bloom;
+		int m_delayWriteBack;
 };
 
 #endif

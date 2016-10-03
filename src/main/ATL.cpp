@@ -41,9 +41,6 @@ int lookasideIndex = 0;
 ATL::ATL(WrapLogManager *manager, int size, int thresh): AliasTableHash(manager, size, 0)
 {
 	m_options = -1;
-	printf("ATL\n");
-	printf("AliasTable Size = %d\n", size);
-
 	char *c = getenv("AliasTableLookaside");
 	if ((c != NULL) && (atoi(c) >= 0))
 	{
@@ -69,6 +66,7 @@ ATL::~ATL()
 void *ATL::read(void *ptr, int size)
 {
 	void *v = (void*)GetItem((uint64_t)ptr);
+	//printf("%p %p\n", ptr, v);
 	if (v == NULL)
 		v = ptr;
 	return v;
@@ -145,6 +143,7 @@ void ATL::restoreToCacheHierarchy()
 			//  Some items to write.
 			for (int i = 0; i < lookasideIndex; i++)
 				copyEntryToCache(lookaside[i]);
+			//  TODO won't need these fences when adding TLS since we have TSO.
 			sfence();
 			for (int i = 0; i < lookasideIndex; i++)
 				writebackEntry(lookaside[i]);
@@ -154,7 +153,7 @@ void ATL::restoreToCacheHierarchy()
 				m_entries[lookaside[i]].key = 0;
 				lookaside[i] = 0;
 			}
-			clearBloom();
+			m_bloom.clearBloom();
 			return;
 		}
 	}

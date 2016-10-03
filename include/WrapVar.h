@@ -88,7 +88,8 @@ public:
 			db("getRef");
 //			if (sizeof (T) == 4)
 	//			return (T*)wrap
-			return (T *)wrapRead((void *)&_ptr, sizeof(T), w);
+			//return (T *)wrapRead((void *)&_ptr, sizeof(T), w);
+			return NULL;
 	}
 	inline T& operator*() const
 	        {
@@ -186,7 +187,9 @@ T WrapVar<T>::get(WRAPTOKEN w) const
 		return (T)u;
 	}
 	assert(0);
-	T val = *(T *)wrapRead((void *)(&_ptr), sizeof(T), w);
+	//T val = *(T *)wrapRead((void *)(&_ptr), sizeof(T), w);
+	T val;
+	wrapRead((void*)&val, (void *)(&_ptr), sizeof(T), w);
 	return val;
 }
 

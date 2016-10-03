@@ -42,6 +42,7 @@ public:
 	virtual void onWrapClose(int wrapToken, WrapLogger *log) = 0;
 
 	virtual void *read(void *ptr, int size) = 0;
+	virtual size_t readInto(void *ptr, const void *src, size_t size) {return 0;};
 	virtual void write(void *ptr, void *src, int size) = 0;
 
 	virtual void *load(void *ptr) = 0;
@@ -51,6 +52,7 @@ public:
 	virtual void restoreAllElements() = 0;
 
 	virtual const char *getDetails() = 0;
+
 };
 
 #endif

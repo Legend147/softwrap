@@ -54,7 +54,11 @@ private:
 		int nexti = _nextIndex.get(w);
 
 		for (int i = 0; i < nexti; i++)
-			wrapWrite(&pnew[i], wrapRead(&pold[i], sizeof(T), w), sizeof(T), w);
+		{
+			T told;
+			wrapRead(&told, &pold[i], sizeof(T), w);
+			wrapWrite(&pnew[i], &told, sizeof(T), w);
+		}
 		printf("copied\n");
 		char c = 0;
 		for (int j = nexti *sizeof(T); j < (int)(size*sizeof(T)); j++)
@@ -135,8 +139,9 @@ public:
 		{
 			resize(index);
 		}
-		T *pnewa = wrapRead(_pa.get() + index, sizeof(T), NULL);
-		return *pnewa;
+		T tnew;
+		wrapRead(&tnew, _pa.get() + index, sizeof(T), NULL);
+		return tnew;
 	}
 
 	inline void set(int index, T value)

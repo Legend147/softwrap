@@ -216,7 +216,7 @@ void AliasTableHash::restoreAllElements()
 	*/
 	m_logTime += (getNsTime() - t2);
 	m_numItems = 0;
-	clearBloom();
+	m_bloom.clearBloom();
 	p_msync();
 
 };

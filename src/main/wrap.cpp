@@ -136,6 +136,7 @@ void startPinStatistics()
 void startStatistics()
 {
 	getWrapImpl()->startStatistics();
+	startMemStats();
 	startPinStatistics();
 }
 
@@ -147,8 +148,10 @@ void getStatistics(char *c)
 {
 	char tc[1024];
 	getPinStatistics(tc);
-	sprintf(c, "ntstore= %d \tp_msync= %d \twritecomb= %d \t%s",
-			getNumNtStores(), getNumPMSyncs(), getNumWriteComb(), tc);
+	sprintf(c, "ntstore= %d \tp_msync= %d \twritecomb= %d \t%s \t" \
+			"totalWrapStreams= %d \ttotalBytesStreamed= %ld",
+			getNumNtStores(), getNumPMSyncs(), getNumWriteComb(), tc,
+			getWrapImpl()->totWrapStreams, getWrapImpl()->totBytesStreamed);
 }
 
 void getAllStatistics(char *c)
@@ -179,40 +182,89 @@ const char *getAliasDetails()
 }
 
 
+WRAP_TLS int nWrapsOpen = 0;
+WRAP_TLS int isWrapStreamOpen = 0;
+WRAP_TLS WRAPTOKEN topToken = 0;
 WRAPTOKEN wrapOpen()
 {
+	nWrapsOpen++;
 	//  Pin should inject an instrument before return value.
 	getWrapImpl()->wrapStatOpen();
-	return getWrapImpl()->wrapImplOpen();
+	if (isWrapStreamOpen)
+	{
+		assert(nWrapsOpen > 0);
+		return 1;
+	}
+	topToken = getWrapImpl()->wrapImplOpen();
+	return topToken;
 }
 
 int wrapClose(WRAPTOKEN w)
 {
+	nWrapsOpen--;
 	//  Pin should inject an instrument before entry value.
 	getWrapImpl()->wrapStatClose();
+	if (isWrapStreamOpen)
+	{
+		assert(nWrapsOpen > 0);
+		return 1;
+	}
 	return getWrapImpl()->wrapImplClose(w);
 }
 
+
+WRAPTOKEN wrapStreamOpen()
+{
+	if (nWrapsOpen == 0)
+	{
+		isWrapStreamOpen = 1;
+		topToken = 1;
+		getWrapImpl()->wrapStatStream();
+	}
+	nWrapsOpen++;
+	getWrapImpl()->wrapStatOpen();
+	return topToken;
+}
+
+int wrapStreamClose(WRAPTOKEN w)
+{
+	nWrapsOpen--;
+	if (nWrapsOpen == 0)
+		isWrapStreamOpen = 0;
+	getWrapImpl()->wrapStatClose();
+	return 1;
+}
+
+
 void wrapWrite(void *ptr, void *src, int size, WRAPTOKEN w)
 {
+	if (isWrapStreamOpen)
+	{
+		Debug("wrapWriteStream %p %p %d\n", ptr, src, size);
+		ntstore(ptr, src, size);
+		getWrapImpl()->wrapStatStreamWrite(size);
+		return;
+	}
 	if (isDebug())
 	{
 		Debug("wrapWrite %p %p %d\n", ptr, src, size);
-		assert(isInPMem(ptr));
+		//assert(isInPMem(ptr));
 	}
 	getWrapImpl()->wrapStatWrite(size);
 	getWrapImpl()->wrapImplWrite(ptr, src, size, w);
 }
 
-void *wrapRead(void *ptr, int size, WRAPTOKEN w)
+size_t wrapRead(void *ptr, const void *src, size_t size, WRAPTOKEN w)
 {
-	Debug("wrapRead ptr=%p size=%d\n", ptr, size);
+	Debug("wrapRead ptr=%p src=%p size=%d\n", ptr, src, size);
 	getWrapImpl()->wrapStatRead(size);
-	return getWrapImpl()->wrapImplRead(ptr, size, w);
+	return getWrapImpl()->wrapImplRead(ptr, src, size, w);
 }
 
 uint64_t wrapLoad64(void *ptr, WRAPTOKEN w)
 {
+	Debug("wrapLoad64 ptr=%p\n", ptr);
+
 	//getWrapImpl()->wrapStatLoad();
 	getWrapImpl()->wrapStatRead(8);
 
@@ -221,14 +273,43 @@ uint64_t wrapLoad64(void *ptr, WRAPTOKEN w)
 
 uint32_t wrapLoad32(void *ptr, WRAPTOKEN w)
 {
+	Debug("wrapLoad32 ptr=%p\n", ptr);
+
 	//getWrapImpl()->wrapStatLoad();
 	getWrapImpl()->wrapStatRead(4);
 
 	return getWrapImpl()->wrapImplLoad32(ptr, w);
 }
 
+uint16_t wrapLoad16(void *ptr, WRAPTOKEN w)
+{
+	Debug("wrapLoad16 ptr=%p\n", ptr);
+
+	//getWrapImpl()->wrapStatLoad();
+	getWrapImpl()->wrapStatRead(2);
+
+	return getWrapImpl()->wrapImplLoad16(ptr, w);
+}
+
+uint8_t wrapLoadByte(void *ptr, WRAPTOKEN w)
+{
+	Debug("wrapLoadByte ptr=%p\n", ptr);
+
+	//getWrapImpl()->wrapStatLoad();
+	getWrapImpl()->wrapStatRead(1);
+
+	return getWrapImpl()->wrapImplLoadByte(ptr, w);
+}
+
+
 void wrapStore64(void *ptr, uint64_t value, WRAPTOKEN w)
 {
+	if (isWrapStreamOpen)
+	{
+		ntstore(ptr, &value, sizeof(value));
+		getWrapImpl()->wrapStatStreamWrite(sizeof(value));
+		return;
+	}
 	//getWrapImpl()->wrapStatStore();
 	getWrapImpl()->wrapStatWrite(8);
 
@@ -237,10 +318,44 @@ void wrapStore64(void *ptr, uint64_t value, WRAPTOKEN w)
 
 void wrapStore32(void *ptr, uint32_t value, WRAPTOKEN w)
 {
+	if (isWrapStreamOpen)
+	{
+		ntstore(ptr, &value, sizeof(value));
+		getWrapImpl()->wrapStatStreamWrite(sizeof(value));
+		return;
+	}
 	//getWrapImpl()->wrapStatStore();
 	getWrapImpl()->wrapStatWrite(4);
 
 	getWrapImpl()->wrapImplStore32(ptr, value, w);
+}
+
+void wrapStore16(void *ptr, uint16_t value, WRAPTOKEN w)
+{
+	if (isWrapStreamOpen)
+	{
+		ntstore(ptr, &value, sizeof(value));
+		getWrapImpl()->wrapStatStreamWrite(sizeof(value));
+		return;
+	}
+	//getWrapImpl()->wrapStatStore();
+	getWrapImpl()->wrapStatWrite(2);
+
+	getWrapImpl()->wrapImplStore16(ptr, value, w);
+}
+
+void wrapStoreByte(void *ptr, uint8_t value, WRAPTOKEN w)
+{
+	if (isWrapStreamOpen)
+	{
+		ntstore(ptr, &value, sizeof(value));
+		getWrapImpl()->wrapStatStreamWrite(sizeof(value));
+		return;
+	}
+	//getWrapImpl()->wrapStatStore();
+	getWrapImpl()->wrapStatWrite(1);
+
+	getWrapImpl()->wrapImplStoreByte(ptr, value, w);
 }
 
 void persistentNotifyPin(void *v, size_t size, int isLogArea)

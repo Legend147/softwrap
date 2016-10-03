@@ -26,41 +26,48 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __LFHT_H
-#define __LFHT_H
+#include <stdio.h>
+#include "wrap.h"
+#include "memtool.h"
 
-#include <stdlib.h>
-#include <stdint.h>
-
-#include "bloom.h"
-
-class LFHT
+void update(uint32_t *data, int size)
 {
-public:
-	LFHT(int size, int mt = 1);
-	~LFHT();
-	uint64_t GetItem(uint64_t key, int *size = NULL);
-	void *GetItemAddress(uint64_t key);
-	uint64_t SetItem(uint64_t key, uint64_t value, int size);
-	int GetMaxSize();
-	int GetNumItems();
-	void clear();
+	WRAPTOKEN w = wrapStreamOpen();
 
-protected:
-	struct Entry
+	for (int i = 0; i < size; i++)
 	{
-	    uint64_t key;
-	    uint64_t value;
-	    int size;
-	};
-	Entry *m_entries;
-	int m_arraySize;
-	volatile int m_numItems;
-	//  flag for multi-threaded
-	int m_mt;
+		char c = (char)i*4 + 'A';
+		unsigned int val = c | (c+1)<<8 | (c+2)<< 16 | (c+3) << 24;
+		printf(".");
+		//data[i] = val;
+		wrapStore32(data+i, val, w);
+	}
+	wrapStreamClose(w);
+}
 
-	BloomFilter m_bloom;
+int main(int argc, char *argv[])
+{
+	int arraySize = 10;
+	int n = 8;
+	if (argc >= 2)
+		arraySize = atoi(argv[1]);
+	if (argc >= 3)
+		n = atoi(argv[2]);
+	if ((argc > 3) || (arraySize <= 0) || (n <= 0))
+	{
+		printf("Usage: %s [size [nstreams]] \nRuns a stream test of size elements for nstreams.\n",
+				argv[0]);
+		return 1;
+	}
+	startStatistics();
 
-};
+	uint32_t *data = (uint32_t *)pmalloc(arraySize * sizeof(int) * n);
+	printf("Array size=%d integers with start address: %p\n", arraySize*n, data);
 
-#endif
+	for (int i = 0; i < n; i++)
+		update(data+(i*n), arraySize);
+	pfree(data);
+
+	printStatistics(stdout);
+	return 0;
+}
