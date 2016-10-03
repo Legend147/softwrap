@@ -1,7 +1,7 @@
 VPATH = ../../include
 
 OBJS = wrap.o memtool.o WrapImpl.o WrapImplUndoLog.o WrapImplSoftware.o avl.o pmem.o tracer.o virt2phys.o \
-	WrapLogger.o WrapLogManager.o WrapLogManagerBlock.o AliasTable.o AliasTableHash.o AT2.o LFHT.o AT3.o ATL.o
+	WrapLogger.o WrapLogManager.o WrapLogManagerBlock.o AliasTable.o AliasTableHash.o AT2.o LFHT.o AT3.o ATL.o LAT.o
 
 LIB = ../../lib
 
@@ -41,7 +41,7 @@ WrapImplRedoLog.o: WrapImplRedoLog.cpp WrapImplRedoLog.h WrapImpl.h wrap.h memto
 	g++ $(CFLAGS) -o $@ -fPIC $(ATO) -c $<
 
 WrapImplSoftware.o: WrapImplSoftware.cpp WrapImplSoftware.h WrapImpl.h wrap.h memtool.h debug.h \
-		AliasTable.h AliasTableHash.h AliasTableBase.h AT2.h
+		AliasTable.h AliasTableHash.h AliasTableBase.h AT2.h ATL.h LAT.h AT3.h
 	g++ $(CFLAGS) -o $@ -fPIC $(ATO4) -c $<
 	
 WrapLogger.o: WrapLogger.cpp WrapLogger.h wrap.h
@@ -59,7 +59,7 @@ memtool.o: memtool.c memtool.h debug.h
 AliasTable.o: AliasTable.cpp AliasTable.h wrap.h memtool.h avl.cpp WrapLogger.h WrapLogManager.h AliasTableBase.h avl.h
 	g++ $(CFLAGS) -o $@ -fPIC $(ATO4) -c $<
 
-AliasTableHash.o: AliasTableHash.cpp AliasTableHash.h wrap.h memtool.h LFHT.h WrapLogger.h WrapLogManager.h AliasTableBase.h avl.h
+AliasTableHash.o: AliasTableHash.cpp AliasTableHash.h wrap.h memtool.h LFHT.h WrapLogger.h WrapLogManager.h AliasTableBase.h avl.h bloom.h
 	g++ $(CFLAGS) -o $@ -fPIC $(ATO4) -c $<
 
 AT2.o: AT2.cpp AT2.h AliasTableHash.h wrap.h memtool.h WrapLogger.h WrapLogManager.h AliasTableBase.h avl.h
@@ -68,12 +68,15 @@ AT2.o: AT2.cpp AT2.h AliasTableHash.h wrap.h memtool.h WrapLogger.h WrapLogManag
 AT3.o: AT3.cpp AT3.h AliasTableHash.h wrap.h memtool.h WrapLogger.h WrapLogManager.h AliasTableBase.h avl.h
 	g++ $(CFLAGS) -o $@ -fPIC $(ATO4) -c $<
 
-ATL.o: ATL.cpp ATL.h AliasTableHash.h wrap.h memtool.h WrapLogger.h WrapLogManager.h AliasTableBase.h
+ATL.o: ATL.cpp ATL.h AliasTableHash.h wrap.h memtool.h WrapLogger.h WrapLogManager.h AliasTableBase.h bloom.h
+	g++ $(CFLAGS) -o $@ -fPIC $(ATO4) -c $<
+	
+LAT.o: LAT.cpp LAT.h wrap.h memtool.h WrapLogger.h WrapLogManager.h AliasTableBase.h bloom.h
 	g++ $(CFLAGS) -o $@ -fPIC $(ATO4) -c $<
 
 avl.o: avl.cpp avl.h
 	g++ $(CFLAGS) -o $@ -fPIC $(ATO4) -c $<
 	
-LFHT.o: LFHT.cpp LFHT.h
+LFHT.o: LFHT.cpp LFHT.h bloom.h
 	g++ $(CFLAGS) -o $@ -fPIC $(ATO4) -c $<
 

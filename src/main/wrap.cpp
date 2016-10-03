@@ -136,6 +136,7 @@ void startPinStatistics()
 void startStatistics()
 {
 	getWrapImpl()->startStatistics();
+	startMemStats();
 	startPinStatistics();
 }
 
@@ -183,7 +184,7 @@ const char *getAliasDetails()
 
 WRAP_TLS int nWrapsOpen = 0;
 WRAP_TLS int isWrapStreamOpen = 0;
-
+WRAP_TLS WRAPTOKEN topToken = 0;
 WRAPTOKEN wrapOpen()
 {
 	nWrapsOpen++;
@@ -194,7 +195,8 @@ WRAPTOKEN wrapOpen()
 		assert(nWrapsOpen > 0);
 		return 1;
 	}
-	return getWrapImpl()->wrapImplOpen();
+	topToken = getWrapImpl()->wrapImplOpen();
+	return topToken;
 }
 
 int wrapClose(WRAPTOKEN w)
@@ -216,11 +218,12 @@ WRAPTOKEN wrapStreamOpen()
 	if (nWrapsOpen == 0)
 	{
 		isWrapStreamOpen = 1;
+		topToken = 1;
 		getWrapImpl()->wrapStatStream();
 	}
 	nWrapsOpen++;
 	getWrapImpl()->wrapStatOpen();
-	return 1;
+	return topToken;
 }
 
 int wrapStreamClose(WRAPTOKEN w)
@@ -245,7 +248,7 @@ void wrapWrite(void *ptr, void *src, int size, WRAPTOKEN w)
 	if (isDebug())
 	{
 		Debug("wrapWrite %p %p %d\n", ptr, src, size);
-		assert(isInPMem(ptr));
+		//assert(isInPMem(ptr));
 	}
 	getWrapImpl()->wrapStatWrite(size);
 	getWrapImpl()->wrapImplWrite(ptr, src, size, w);
@@ -260,6 +263,8 @@ size_t wrapRead(void *ptr, const void *src, size_t size, WRAPTOKEN w)
 
 uint64_t wrapLoad64(void *ptr, WRAPTOKEN w)
 {
+	Debug("wrapLoad64 ptr=%p\n", ptr);
+
 	//getWrapImpl()->wrapStatLoad();
 	getWrapImpl()->wrapStatRead(8);
 
@@ -268,6 +273,8 @@ uint64_t wrapLoad64(void *ptr, WRAPTOKEN w)
 
 uint32_t wrapLoad32(void *ptr, WRAPTOKEN w)
 {
+	Debug("wrapLoad32 ptr=%p\n", ptr);
+
 	//getWrapImpl()->wrapStatLoad();
 	getWrapImpl()->wrapStatRead(4);
 
@@ -276,6 +283,8 @@ uint32_t wrapLoad32(void *ptr, WRAPTOKEN w)
 
 uint16_t wrapLoad16(void *ptr, WRAPTOKEN w)
 {
+	Debug("wrapLoad16 ptr=%p\n", ptr);
+
 	//getWrapImpl()->wrapStatLoad();
 	getWrapImpl()->wrapStatRead(2);
 
@@ -284,6 +293,8 @@ uint16_t wrapLoad16(void *ptr, WRAPTOKEN w)
 
 uint8_t wrapLoadByte(void *ptr, WRAPTOKEN w)
 {
+	Debug("wrapLoadByte ptr=%p\n", ptr);
+
 	//getWrapImpl()->wrapStatLoad();
 	getWrapImpl()->wrapStatRead(1);
 
@@ -331,6 +342,20 @@ void wrapStore16(void *ptr, uint16_t value, WRAPTOKEN w)
 	getWrapImpl()->wrapStatWrite(2);
 
 	getWrapImpl()->wrapImplStore16(ptr, value, w);
+}
+
+void wrapStoreByte(void *ptr, uint8_t value, WRAPTOKEN w)
+{
+	if (isWrapStreamOpen)
+	{
+		ntstore(ptr, &value, sizeof(value));
+		getWrapImpl()->wrapStatStreamWrite(sizeof(value));
+		return;
+	}
+	//getWrapImpl()->wrapStatStore();
+	getWrapImpl()->wrapStatWrite(1);
+
+	getWrapImpl()->wrapImplStoreByte(ptr, value, w);
 }
 
 void persistentNotifyPin(void *v, size_t size, int isLogArea)

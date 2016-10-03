@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "wrap.h"
 
 void testStore(int type, int *ia, int k, int w)
@@ -9,8 +10,30 @@ void testStore(int type, int *ia, int k, int w)
         *ia = k;
 }
 
+void testCopy(int *p, int size, int type)
+{
+	int t[] = {1, 2, 3, 4, 5, 6, 7, 8};
+
+	WRAPTOKEN w;
+	if (type > 2)
+		w = wrapOpen();
+	if (type >= 2)
+		wrapWrite(p, t, 8*sizeof(int), w);
+	else
+	{
+		printf("Testing memcpy\n");
+		memcpy(p, t, 8*sizeof(int));
+		printf("Testing just assignment\n");
+		p[0] = 1;
+	}
+
+	if (type > 2)
+		wrapClose(w);
+}
+
 int main(int argc, char *argv[])
 {
+
   int type;
   int *ip = (int*)pmalloc(1024);
 
@@ -22,7 +45,7 @@ int main(int argc, char *argv[])
     printf("type=3 everything wrapped\n");
     return 1;
   }
-  //int type = atoi(argv[1]);
+  testCopy(ip, 1024, type);
 
   for (int i = 0; i < 10; i++)
   {

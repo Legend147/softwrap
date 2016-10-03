@@ -79,6 +79,8 @@ void cacheflush();
 void p_msync();
 void pcommit();
 
+void startMemStats();
+
 void msync();
 
 void sfence();

@@ -37,6 +37,7 @@
 #include "AT2.h"
 #include "AT3.h"
 #include "ATL.h"
+#include "LAT.h"
 
 //  TLS
 int WRAP_TLS WrapImplSoftware::_wrapToken = 0;
@@ -129,16 +130,17 @@ void WrapImplSoftware::wrapImplWrite(void *ptr, void *src, int size, WRAPTOKEN w
 
 size_t WrapImplSoftware::wrapImplRead(void *ptr, const void *src, size_t size, WRAPTOKEN w)
 {
-	void *v = _table->read(ptr, size);
+	if (useReadInto)
+		return _table->readInto(ptr, src, size);
+
+	void *v = _table->read((void*)src, size);
 
 	if (v == NULL)
-		return 0;
-
-	memcpy(ptr, v, size);
+		memcpy(ptr, src, size);
+	else
+		memcpy(ptr, v, size);
 	return size;
 }
-
-
 
 void WrapImplSoftware::wrapImplStore64(void *ptr, uint64_t value, WRAPTOKEN w)
 {
@@ -166,33 +168,67 @@ void WrapImplSoftware::wrapImplStore16(void *ptr, uint16_t value, WRAPTOKEN w)
 	//  Add to the alias table.
 	_table->store(ptr, value, 2);
 }
+void WrapImplSoftware::wrapImplStoreByte(void *ptr, uint8_t value, WRAPTOKEN w)
+{
+	//  Stream to the log.
+	_log->addWrapLogEntry(ptr, &value, 1, w);
+
+	//  Add to the alias table.
+	_table->store(ptr, value, 1);
+}
 
 uint64_t WrapImplSoftware::wrapImplLoad64(void *ptr, WRAPTOKEN w)
 {
+	if (useReadInto)
+	{
+		uint64_t data;
+		 _table->readInto(&data, ptr, sizeof(data));
+		 return data;
+	}
 	uint64_t *t = (uint64_t *)_table->load(ptr);
 	return *t;
 }
 uint32_t WrapImplSoftware::wrapImplLoad32(void *ptr, WRAPTOKEN w)
 {
+	if (useReadInto)
+	{
+		uint32_t data;
+		 _table->readInto(&data, ptr, sizeof(data));
+		 return data;
+	}
+
 	uint64_t *t = (uint64_t *)_table->load(ptr);
 	return (uint32_t)*t;
 }
 uint16_t WrapImplSoftware::wrapImplLoad16(void *ptr, WRAPTOKEN w)
 {
+	if (useReadInto)
+	{
+		uint16_t data;
+		 _table->readInto(&data, ptr, sizeof(data));
+		 return data;
+	}
 	uint64_t *t = (uint64_t *)_table->load(ptr);
 	return (uint16_t)*t;
 }
 uint8_t WrapImplSoftware::wrapImplLoadByte(void *ptr, WRAPTOKEN w)
 {
-	uint8_t c;
-	//  TODO, can use pimitives.
-	return wrapImplRead(&c, ptr, 1, w);
+	if (useReadInto)
+	{
+		uint8_t data;
+		 _table->readInto(&data, ptr, sizeof(data));
+		 return data;
+	}
+	uint64_t *t = (uint64_t *)_table->load(ptr);
+	return (uint8_t)*t;
 }
 
 WrapImplSoftware::WrapImplSoftware()
 {
+	useReadInto = 0;
 	char *at = getenv("AliasTable");
-	if ((at != NULL) && ((strcmp(at, "AT2") == 0) || (strcmp(at, "AT3") == 0) || (strcmp(at, "ATL") == 0)))
+	if ((at != NULL) && ((strcmp(at, "AT2") == 0) || (strcmp(at, "AT3") == 0) ||
+			(strcmp(at, "ATL") == 0) || (strcmp(at, "LAT") == 0)))
 	{
 		int ATSize = 1<<13;
 		char *atopt = getenv("AliasTableSize");
@@ -211,8 +247,13 @@ WrapImplSoftware::WrapImplSoftware()
 			_table = new AT2(_logManager, ATSize, ATThresh);
 		else if (strcmp(at, "AT3") == 0)
 			_table = new AT3(_logManager, ATSize, ATThresh);
-		else
+		else if (strcmp(at, "ATL") == 0)
 			_table = new ATL(_logManager, ATSize, ATThresh);
+		else
+		{
+			useReadInto = 1;
+			_table = new LAT(_logManager, ATSize);
+		}
 	}
 	else
 		_table = new AliasTable(_logManager);

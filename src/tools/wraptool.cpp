@@ -803,8 +803,10 @@ VOID InstrumentRoutine(RTN rtn, VOID *v)
 
 	if (checkSymbolName(rtn, "wrapRead") || checkSymbolName(rtn, "wrapLoad16") ||
 			checkSymbolName(rtn, "wrapLoad32") || checkSymbolName(rtn, "wrapLoad64") ||
+			checkSymbolName(rtn, "wrapLoad8") || checkSymbolName(rtn, "wrapLoadByte") ||
 			checkSymbolName(rtn, "wrapWrite") || checkSymbolName(rtn, "wrapStore16") ||
-			checkSymbolName(rtn, "wrapStore32") || checkSymbolName(rtn, "wrapStore64"))
+			checkSymbolName(rtn, "wrapStore32") || checkSymbolName(rtn, "wrapStore64") ||
+			checkSymbolName(rtn, "wrapStore8") || checkSymbolName(rtn, "wrapStoreByte"))
 	{
 		RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)checkWrapOpen, IARG_PTR, rc, IARG_INST_PTR, IARG_END);
 	}
@@ -989,14 +991,14 @@ VOID Routine(RTN rtn, VOID *v)
 		RTN_Close(rtn);
 	}
 	//LOG(RTN_Name(rtn) + " " + PIN_UndecorateSymbolName(RTN_Name(rtn), UNDECORATION_NAME_ONLY) + "\n");
-	else if (checkSymbolName(rtn, "wrapOpen"))
+	else if (checkSymbolName(rtn, "wrapOpen") || checkSymbolName(rtn, "wrapStreamOpen"))
 	{
 		RTN_Open(rtn);
 		// Insert a call at the exit point of the wrap open routine to increment wrap open count for the thread.
 		RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)markWrapOpen, IARG_FUNCRET_EXITPOINT_VALUE,  IARG_THREAD_ID, IARG_END);
 		RTN_Close(rtn);
 	}
-	else if (checkSymbolName(rtn, "wrapClose"))
+	else if (checkSymbolName(rtn, "wrapClose") || checkSymbolName(rtn, "wrapStreamClose"))
 	{
 		RTN_Open(rtn);
 		// Insert a call at the entry point of the wrap close routine to decrement the thread's wrap open count.
@@ -1005,7 +1007,8 @@ VOID Routine(RTN rtn, VOID *v)
 		RTN_Close(rtn);
 	}
 	else if (checkSymbolName(rtn, "wrapRead") || checkSymbolName(rtn, "wrapLoad16") ||
-			checkSymbolName(rtn, "wrapLoad32") || checkSymbolName(rtn, "wrapLoad64"))
+			checkSymbolName(rtn, "wrapLoad32") || checkSymbolName(rtn, "wrapLoad64") ||
+			checkSymbolName(rtn, "wrapLoad8") || checkSymbolName(rtn, "wrapLoadByte"))
 	{
 		RTN_Open(rtn);
 		RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)setInWrapRead, IARG_UINT32, 1, IARG_END);
@@ -1019,7 +1022,8 @@ VOID Routine(RTN rtn, VOID *v)
 		RTN_Close(rtn);
 	}
 	else if (checkSymbolName(rtn, "wrapWrite") || checkSymbolName(rtn, "wrapStore16") ||
-			checkSymbolName(rtn, "wrapStore32") || checkSymbolName(rtn, "wrapStore64"))
+			checkSymbolName(rtn, "wrapStore32") || checkSymbolName(rtn, "wrapStore64")  ||
+			checkSymbolName(rtn, "wrapStore8") || checkSymbolName(rtn, "wrapStoreByte"))
 	{
 		RTN_Open(rtn);
 		RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)setInWrapWrite, IARG_UINT32, 1, IARG_END);
@@ -1082,10 +1086,17 @@ VOID Routine(RTN rtn, VOID *v)
 	else if (checkSymbolName(rtn, "pcommit"))
 	{
 		RTN_Open(rtn);
-		RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)onPCommit);
+		RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)onPCommit, IARG_END);
 		RTN_Close(rtn);
 	}
+	else if (checkSymbolName(rtn, "strcpy"))
+	{
+
+	}
+
+	//printf("instrumenting routine\n");
 	InstrumentRoutine(rtn, NULL);
+	//printf("done!\n");
 }
 
 
@@ -1139,11 +1150,20 @@ VOID Fini(INT32 code, VOID *v)
 VOID ImageLoad(IMG img, VOID *v)
 {
 	OutputFile << "ImageLoad " << IMG_Name(img) << ", Image id = " << IMG_Id(img) << endl;
+
+	/*
+	for (SYM sym = IMG_RegsymHead(img); SYM_Valid(sym); sym = SYM_Next(sym))
+	{
+		string undFuncName = PIN_UndecorateSymbolName(SYM_Name(sym), UNDECORATION_NAME_ONLY);
+	    printf("%s SYM\n", undFuncName.c_str());
+	}
+	*/
 	for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec))
 	{
 		for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn))
 		{
 			Routine(rtn, 0);
+			//printf("%s %s\n", PIN_UndecorateSymbolName(RTN_Name(rtn), UNDECORATION_NAME_ONLY).c_str(), RTN_Name(rtn).c_str());
 		}
 	}
 }
@@ -1177,7 +1197,9 @@ int main(int argc, char *argv[])
 	inWrapFlags = (int *)calloc(MAXTHREADS, sizeof(int));
 
 	// Initialize symbol processing for routine and image processing
-	PIN_InitSymbols();
+	//PIN_InitSymbols();
+	//  We need the alt so we get things like memcpy.
+	PIN_InitSymbolsAlt(SYMBOL_INFO_MODE(UINT32(IFUNC_SYMBOLS) | UINT32(DEBUG_OR_EXPORT_SYMBOLS)));
 
 	if (PIN_Init(argc, argv)) return Usage();
 

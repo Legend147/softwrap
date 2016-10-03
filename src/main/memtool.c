@@ -368,13 +368,19 @@ void nanoSecDelayUntil(long l)
 }
 
 
-int TLS numntstores = 0;
-int TLS numpmsyncs = 0;
-int TLS numwritecomb = 0;
+int numntstores = 0;
+int numpmsyncs = 0;
+int numwritecomb = 0;
 int getNumNtStores() {return numntstores;}
 int getNumPMSyncs() {return numpmsyncs;}
 int getNumWriteComb() {return numwritecomb;}
 
+void startMemStats()
+{
+	numntstores = 0;
+	numpmsyncs = 0;
+	numwritecomb = 0;
+}
 
 void processBuffer(long t)
 {

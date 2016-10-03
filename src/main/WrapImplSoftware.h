@@ -48,6 +48,7 @@ public:
 	void wrapImplStore64(void *ptr, uint64_t value, WRAPTOKEN w);
 	void wrapImplStore32(void *ptr, uint32_t value, WRAPTOKEN w);
 	void wrapImplStore16(void *ptr, uint16_t value, WRAPTOKEN w);
+	void wrapImplStoreByte(void *ptr, uint8_t value, WRAPTOKEN w);
 	uint64_t wrapImplLoad64(void *ptr, WRAPTOKEN w);
 	uint32_t wrapImplLoad32(void *ptr, WRAPTOKEN w);
 	uint16_t wrapImplLoad16(void *ptr, WRAPTOKEN w);
@@ -68,6 +69,7 @@ public:
 
 private:
 	AliasTableBase *_table;
+	int useReadInto;
 };
 
 

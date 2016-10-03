@@ -179,8 +179,6 @@ void WrapImpl::wrapImplStore64(void *ptr, uint64_t value, WRAPTOKEN w)
 	if (m_wrapImplType == Wrap_Hardware)
 		return hardwareWrapStore(ptr, value, 8, w);
 
-	//printf("wrapWrite memcpy %p %p %d\n", ptr, src, size);
-
 	if (m_wrapImplType == NoAtomicity)
 	{
 		ntstore(ptr, &value, 8);
@@ -195,9 +193,7 @@ void WrapImpl::wrapImplStore32(void *ptr, uint32_t value, WRAPTOKEN w)
 	if (m_wrapImplType == Wrap_Hardware)
 		return hardwareWrapStore(ptr, value, 4, w);
 
-	//printf("wrapWrite memcpy %p %p %d\n", ptr, src, size);
-
-	if (m_wrapImplType == NoAtomicity)
+		if (m_wrapImplType == NoAtomicity)
 	{
 		ntstore(ptr, &value, 4);
 		//p_msync();
@@ -211,8 +207,6 @@ void WrapImpl::wrapImplStore16(void *ptr, uint16_t value, WRAPTOKEN w)
 	if (m_wrapImplType == Wrap_Hardware)
 		return hardwareWrapStore(ptr, value, 2, w);
 
-	//printf("wrapWrite memcpy %p %p %d\n", ptr, src, size);
-
 	if (m_wrapImplType == NoAtomicity)
 	{
 		ntstore(ptr, &value, 2);
@@ -221,6 +215,20 @@ void WrapImpl::wrapImplStore16(void *ptr, uint16_t value, WRAPTOKEN w)
 	else
 		*(uint16_t*)ptr = value;
 }
+
+void WrapImpl::wrapImplStoreByte(void *ptr, uint8_t value, WRAPTOKEN w)
+{
+	if (m_wrapImplType == Wrap_Hardware)
+		return hardwareWrapStore(ptr, value, 1, w);
+
+	if (m_wrapImplType == NoAtomicity)
+	{
+		ntstore(ptr, &value, 1);
+	}
+	else
+		*(uint8_t*)ptr = value;
+}
+
 
 
 uint64_t WrapImpl::wrapImplLoad64(void *ptr, WRAPTOKEN w)

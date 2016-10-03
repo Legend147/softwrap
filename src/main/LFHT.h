@@ -32,6 +32,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#include "bloom.h"
+
 class LFHT
 {
 public:
@@ -57,71 +59,8 @@ protected:
 	//  flag for multi-threaded
 	int m_mt;
 
-#define BLOOM	1
+	BloomFilter m_bloom;
 
-#ifdef BLOOM
-#define BloomSize (1<<10)
-#define BloomBits 10
-
-	unsigned long BloomField[BloomSize];
-
-	inline int getBloom(uint64_t ptr)
-	{
-		return (ptr >> 2) & ((BloomSize << 6) - 1);
-	};
-
-	inline int checkBloom(uint64_t ptr)
-	{
-		int i = getBloom(ptr);
-		return (BloomField[i >> 6]&(1<<(i&63)));
-	};
-
-	inline void setBloom(uint64_t ptr)
-	{
-		int i = getBloom(ptr);
-		BloomField[i >> 6] |= (1 << (i&63));
-	};
-
-	inline void clearBloom()
-	{
-		for (int i = 0; i < BloomSize; i++)
-			BloomField[i] = 0;
-	}
-#else
-#ifdef SIMPLEBLOOM
-#define BloomSize 4
-#define BloomBits 10
-
-	unsigned long BloomField[BloomSize];
-
-	inline int getBloom(uint64_t ptr)
-	{
-		return (ptr >> 2) & ((BloomSize << 6) - 1);
-	};
-
-	inline int checkBloom(uint64_t ptr)
-	{
-		int i = getBloom(ptr);
-		return (BloomField[i >> 6]&(1<<(i&63)));
-	};
-
-	inline void setBloom(uint64_t ptr)
-	{
-		int i = getBloom(ptr);
-		BloomField[i >> 6] |= (1 << (i&63));
-	};
-
-	inline void clearBloom()
-	{
-		for (int i = 0; i < BloomSize; i++)
-			BloomField[i] = 0;
-	}
-#else
-#define clearBloom()
-#define checkBloom(x)	1
-#define setBloom(x)
-#endif
-#endif
 };
 
 #endif

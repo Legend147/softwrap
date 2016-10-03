@@ -115,7 +115,7 @@ void LFHT::clear()
 		m_entries[i].value = 0;
 		m_entries[i].size = 0;
 	}
-	clearBloom();
+	m_bloom.clearBloom();
 }
 
 LFHT::~LFHT()
@@ -164,7 +164,7 @@ uint64_t LFHT::GetItem(uint64_t key, int *size)
 
 void *LFHT::GetItemAddress(uint64_t key)
 {
-	if (checkBloom(key))
+	if (m_bloom.checkBloom(key))
 		for (uint64_t idx = integerHash(key); ; idx++)
 		{
 			idx &= (m_arraySize - 1);
@@ -189,7 +189,7 @@ uint64_t LFHT::SetItem(uint64_t key, uint64_t value, int size)
 	printf("s=%d\n", sets);
 	sets = sets+1;
 	 */
-	setBloom(key);
+	m_bloom.setBloom(key);
 	int l = 0;
 	for (uint64_t idx = integerHash(key);; idx++)
 	{

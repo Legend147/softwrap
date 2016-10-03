@@ -152,7 +152,7 @@ void WrapLogger::addWrapLogEntry(void *ptr, void *src, int size, WRAPTOKEN w)
 	{
 		uint64_t u = (uint64_t)ptr;
 		//  Make sure the last bits of the pointer are zero, eg it's 4 byte aligned.
-		assert((u & 3) == 0);
+		//assert((u & 3) == 0);
 		u += (_flagEntry & 1);
 		ntstore(_currentLocation, (void *)u, 8);
 		_currentLocation += 8;

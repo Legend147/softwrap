@@ -34,8 +34,8 @@
 
 //pthread_rwlock_t _managerlock = PTHREAD_RWLOCK_INITIALIZER;
 
-#define MAX_THREADS 100
-#define LOGS_PER_THREAD	10
+#define MAX_THREADS 5
+#define LOGS_PER_THREAD	5
 
 //  Initializes the wrap log manager and sets the default wrap log size and number of logs.
 WrapLogManagerBlock::WrapLogManagerBlock()
@@ -48,7 +48,7 @@ WrapLogManagerBlock::WrapLogManagerBlock()
 		assert(m_logSize > 0);
 	}
 	else
-		m_logSize = 8192;
+		m_logSize = (1 << 20);
 
 		m_activeThreads = 0;
 		m_maxLogs = LOGS_PER_THREAD * MAX_THREADS;

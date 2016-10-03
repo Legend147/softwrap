@@ -131,6 +131,14 @@ void WrapImplUndoLog::wrapImplStore16(void *ptr, uint16_t value, WRAPTOKEN w)
 	//  Only one pcommit per write.
 	//p_msync();
 }
+void WrapImplUndoLog::wrapImplStoreByte(void *ptr, uint8_t value, WRAPTOKEN w)
+{
+	_log->addWrapLogEntry(ptr, ptr, 1, w);
+	p_msync();
+	ntstore(ptr, &value, 1);
+	//  Only one pcommit per write.
+	//p_msync();
+}
 
 uint64_t WrapImplUndoLog::wrapImplLoad64(void *ptr, WRAPTOKEN w)
 {
