@@ -52,7 +52,7 @@ public:
 		void restoreAllElements();
 
 		size_t readInto(void *ptr, const void *src, size_t size);
-		void *read(void *ptr, int size) { assert(0); }
+		void *read(void *ptr, int size) { assert(0); return NULL; }
 		void write(void *ptr, void *src, int size);
 
 		void *load(void *ptr);

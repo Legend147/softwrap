@@ -184,53 +184,55 @@ const char *getAliasDetails()
 
 WRAP_TLS int nWrapsOpen = 0;
 WRAP_TLS int isWrapStreamOpen = 0;
+WRAP_TLS int wrapStreamStack = 0;
 WRAP_TLS WRAPTOKEN topToken = 0;
+
 WRAPTOKEN wrapOpen()
 {
 	nWrapsOpen++;
+	wrapStreamStack <<= 1;
+	isWrapStreamOpen = 0;
+
 	//  Pin should inject an instrument before return value.
 	getWrapImpl()->wrapStatOpen();
-	if (isWrapStreamOpen)
-	{
-		assert(nWrapsOpen > 0);
-		return 1;
-	}
+
 	topToken = getWrapImpl()->wrapImplOpen();
 	return topToken;
 }
 
 int wrapClose(WRAPTOKEN w)
 {
+	assert((isWrapStreamOpen & 1) == 0);
 	nWrapsOpen--;
+	wrapStreamStack >>= 1;
+	isWrapStreamOpen = wrapStreamStack & 1;
+
 	//  Pin should inject an instrument before entry value.
 	getWrapImpl()->wrapStatClose();
-	if (isWrapStreamOpen)
-	{
-		assert(nWrapsOpen > 0);
-		return 1;
-	}
+
 	return getWrapImpl()->wrapImplClose(w);
 }
 
 
 WRAPTOKEN wrapStreamOpen()
 {
-	if (nWrapsOpen == 0)
-	{
-		isWrapStreamOpen = 1;
-		topToken = 1;
-		getWrapImpl()->wrapStatStream();
-	}
 	nWrapsOpen++;
+	wrapStreamStack = (wrapStreamStack << 1) + 1;
+	isWrapStreamOpen = 1;
+
+	getWrapImpl()->wrapStatStream();
 	getWrapImpl()->wrapStatOpen();
 	return topToken;
 }
 
 int wrapStreamClose(WRAPTOKEN w)
 {
+	assert((isWrapStreamOpen & 1) == 1);
+
 	nWrapsOpen--;
-	if (nWrapsOpen == 0)
-		isWrapStreamOpen = 0;
+	wrapStreamStack >>= 1;
+	isWrapStreamOpen = wrapStreamStack & 1;
+
 	getWrapImpl()->wrapStatClose();
 	return 1;
 }

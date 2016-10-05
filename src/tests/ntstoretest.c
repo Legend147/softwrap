@@ -29,7 +29,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <pthread.h>
-#include "memtool.c"
+#include "../main/memtool.c"
 
 
 int *data;

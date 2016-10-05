@@ -6,7 +6,8 @@ LIB = ../../lib
 BINS = $(BIN)/testsimple $(BIN)/testarray $(BIN)/testmap $(BIN)/testwrapbtree $(BIN)/bencharray \
 	$(BIN)/benchmap $(BIN)/arraytrace $(BIN)/arrayobject $(BIN)/arrayvalidate \
 	$(BIN)/mtarray $(BIN)/mtarrayrate $(BIN)/simpletest $(BIN)/testwrapvar \
-	$(BIN)/workerthreads $(BIN)/ssarray $(BIN)/ssarrayna $(BIN)/ssbtree $(BIN)/teststream
+	$(BIN)/workerthreads $(BIN)/ssarray $(BIN)/ssarrayna $(BIN)/ssbtree $(BIN)/teststream \
+	$(BIN)/ntstoretest
 
 all: $(BINS)
 
@@ -67,4 +68,7 @@ $(BIN)/simpletest: simpletest.cpp wrap.h memtool.h tracer.h libwrap.so
 	
 $(BIN)/teststream: teststream.cpp wrap.h memtool.h libwrap.so
 	g++ $(CFLAGS) -o $@ $< -L$(LIB) -lwrap
+	
+$(BIN)/ntstoretest: ntstoretest.c ../main/memtool.c memtool.h
+	g++ -O2 -o $@ -I ../../include $< -lpthread
 	
